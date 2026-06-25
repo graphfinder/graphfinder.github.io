@@ -25,7 +25,9 @@ theme:
     - navigation.sections
     - navigation.top
     - navigation.tracking
+    - navigation.indexes
     - content.code.copy
+    - content.code.annotate
     - search.suggest
     - search.highlight
     - toc.follow
@@ -34,12 +36,23 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - Getting started: getting-started.md
-  - Algorithms: algorithms.md
+  - Tutorials:
+      - Grid pathfinding: tutorials/grid.md
+      - Comparing algorithms: tutorials/comparison.md
+      - Random & implicit graphs: tutorials/graphs.md
+  - Concepts:
+      - Algorithms: algorithms.md
+      - Heuristics: heuristics.md
+      - Domains: domains.md
+      - Visualization: visualization.md
+  - Design & internals: architecture.md
   - API reference: api.md
 
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
+  - tables
   - toc:
       permalink: true
   - pymdownx.highlight:
