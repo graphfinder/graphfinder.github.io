@@ -1,0 +1,43 @@
+# Packaging with maturin (Rust core + Python layer).
+# Development:  maturin develop --release
+# Publishing:   maturin build --release  (wheels in target/wheels/)
+
+[build-system]
+requires = ["maturin>=1.5,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "graphfinder"
+version = "0.1.0"
+description = "Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
+readme = "python/README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Jose L. Salmeron" }]
+keywords = ["graph", "search", "pathfinding", "astar", "bfs", "dijkstra"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering",
+]
+# Visualization is a headline feature, so matplotlib/numpy ship by default.
+dependencies = ["numpy", "matplotlib"]
+
+[project.optional-dependencies]
+viz = ["pillow", "networkx"]   # pillow: GIF export · networkx: nicer graph layout
+docs = ["mkdocs-material", "mkdocstrings[python]"]
+
+[project.urls]
+Homepage = "https://turboswarm.github.io/graphfinder"
+Repository = "https://github.com/turboswarm/graphfinder"
+Issues = "https://github.com/turboswarm/graphfinder/issues"
+
+[tool.maturin]
+manifest-path = "crates/graph-py/Cargo.toml"
+python-source = "python"
+module-name = "graphfinder.graphfinder_native"
+include = [{ path = "LICENSE", format = "sdist" }]

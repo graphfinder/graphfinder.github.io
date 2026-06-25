@@ -1,0 +1,14 @@
+[package]
+name = "graph-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "graphfinder_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+graphfinder-core = { path = "../graphfinder-core" }
+# abi3-py39: build a single wheel compatible with CPython >= 3.9.
+pyo3 = { version = "0.22", features = ["extension-module", "abi3-py39"] }

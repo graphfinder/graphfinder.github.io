@@ -1,0 +1,537 @@
+//! Python (PyO3) bindings for the graphfinder Rust core.
+//!
+//! Three search entry points, all returning a `SearchResult`:
+//!   - `search_grid`    — a 2-D maze given as an ASCII map (the teaching path),
+//!   - `search_graph`   — an explicit weighted graph given as an edge list,
+//!   - `search_implicit`— an *implicit* graph defined by a Python successor
+//!     callable (states are ints or tuples of ints), reacquiring the GIL per
+//!     expansion. Native domains run with the GIL released.
+//!
+//! Plus reproducible random-graph generators and maze helpers.
+
+use pyo3::exceptions::PyValueError;
+use pyo3::prelude::*;
+use pyo3::types::{PyList, PyTuple};
+
+use graphfinder_core::domains::{
+    barabasi_albert, erdos_renyi, random_maze, watts_strogatz, SAMPLE_OPEN, SAMPLE_WALL,
+};
+use graphfinder_core::{
+    beam_search, bidirectional, dls, ida_star, iddfs, search_with, Algorithm, Cell, CsrGraph,
+    Euclidean, Graph, GridGraph, Heuristic, Manhattan, Octile, SearchResult, StopReason, Zero,
+};
+
+fn value_err(msg: impl Into<String>) -> PyErr {
+    PyValueError::new_err(msg.into())
+}
+
+// ---------------------------------------------------------------------------
+// Result class
+// ---------------------------------------------------------------------------
+
+/// The outcome of a search.
+///
+/// Attributes:
+///     path (list | None): nodes from start to goal, or ``None`` if unreachable.
+///         Grid nodes are ``(row, col)`` tuples; graph nodes are ints; implicit
+///         nodes are ints or tuples (as your successor function returns them).
+///     cost (float): total cost of ``path`` (``inf`` if none).
+///     found (bool): whether a path was found.
+///     nodes_expanded (int): nodes taken off the frontier and expanded.
+///     nodes_generated (int): nodes ever pushed onto the frontier.
+///     max_frontier_size (int): peak frontier size (a memory proxy).
+///     stop_reason (str): ``"goal"``, ``"exhausted"`` or ``"node_limit"``.
+///     trace (list): per-expansion ``(node, g, frontier_size)`` tuples; empty if
+///         ``record=False``. Replaying ``node`` reproduces the search order
+///         (this drives the visualization in Phase 4).
+#[pyclass(name = "SearchResult")]
+struct PySearchResult {
+    #[pyo3(get)]
+    path: Option<Py<PyAny>>,
+    #[pyo3(get)]
+    cost: f64,
+    #[pyo3(get)]
+    found: bool,
+    #[pyo3(get)]
+    nodes_expanded: usize,
+    #[pyo3(get)]
+    nodes_generated: usize,
+    #[pyo3(get)]
+    max_frontier_size: usize,
+    #[pyo3(get)]
+    stop_reason: String,
+    #[pyo3(get)]
+    trace: Py<PyAny>,
+}
+
+#[pymethods]
+impl PySearchResult {
+    fn __repr__(&self) -> String {
+        let cost = if self.found {
+            format!("{}", self.cost)
+        } else {
+            "inf".to_string()
+        };
+        format!(
+            "SearchResult(found={}, cost={}, expanded={}, frontier={}, stop={})",
+            self.found, cost, self.nodes_expanded, self.max_frontier_size, self.stop_reason
+        )
+    }
+}
+
+fn stop_str(reason: StopReason) -> String {
+    match reason {
+        StopReason::GoalReached => "goal",
+        StopReason::FrontierExhausted => "exhausted",
+        StopReason::NodeLimit => "node_limit",
+    }
+    .to_string()
+}
+
+/// Turn a Rust node into the Python object the user sees.
+trait IntoPyNode {
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny>;
+}
+impl IntoPyNode for Cell {
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
+        (self.row, self.col).into_py(py)
+    }
+}
+impl IntoPyNode for usize {
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
+        (self as i64).into_py(py)
+    }
+}
+impl IntoPyNode for Vec<i64> {
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
+        state_to_py(py, &self)
+    }
+}
+
+fn to_py_result<N: IntoPyNode>(py: Python<'_>, r: SearchResult<N>) -> PyResult<PySearchResult> {
+    let found = r.path.is_some();
+    let path = match r.path {
+        Some(p) => {
+            let items: Vec<Py<PyAny>> = p.into_iter().map(|n| n.into_py_node(py)).collect();
+            Some(PyList::new_bound(py, items).into())
+        }
+        None => None,
+    };
+    let trace = PyList::empty_bound(py);
+    for step in r.trace {
+        let item: Py<PyAny> =
+            (step.expanded.into_py_node(py), step.g, step.frontier_size).into_py(py);
+        trace.append(item)?;
+    }
+    Ok(PySearchResult {
+        path,
+        cost: r.cost,
+        found,
+        nodes_expanded: r.nodes_expanded,
+        nodes_generated: r.nodes_generated,
+        max_frontier_size: r.max_frontier_size,
+        stop_reason: stop_str(r.stop_reason),
+        trace: trace.into(),
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Algorithm dispatch (shared by every domain)
+// ---------------------------------------------------------------------------
+
+struct RunOpts {
+    weight: f64,
+    beam_width: usize,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+}
+
+/// Run the named algorithm on any `Graph`. Pure Rust — safe to call with the
+/// GIL released for native domains.
+fn run_algo<G, H>(
+    graph: &G,
+    start: G::Node,
+    goal: G::Node,
+    algorithm: &str,
+    heuristic: H,
+    record: bool,
+    opts: &RunOpts,
+) -> PyResult<SearchResult<G::Node>>
+where
+    G: Graph,
+    H: Heuristic<G::Node> + Clone,
+{
+    let max_depth = opts.depth_limit.unwrap_or(1000);
+    let r = match algorithm {
+        "bfs" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::bfs(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "dfs" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::dfs(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "ucs" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::ucs(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "dijkstra" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::dijkstra(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "greedy" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::greedy(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "astar" | "a*" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::astar(),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "weighted_astar" | "wastar" => search_with(
+            graph,
+            start,
+            goal,
+            Algorithm::weighted_astar(opts.weight),
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ),
+        "iddfs" => iddfs(graph, start, goal, max_depth, record),
+        "dls" => {
+            let limit = opts
+                .depth_limit
+                .ok_or_else(|| value_err("'dls' requires depth_limit"))?;
+            dls(graph, start, goal, limit, record)
+        }
+        "ida_star" | "idastar" => ida_star(graph, start, goal, heuristic.clone(), record),
+        "beam" => beam_search(
+            graph,
+            start,
+            goal,
+            heuristic.clone(),
+            opts.beam_width,
+            record,
+        ),
+        "bidirectional" | "bidir" => bidirectional(graph, start, goal, record),
+        other => {
+            return Err(value_err(format!(
+                "unknown algorithm: '{other}'. Available: bfs, dfs, ucs, dijkstra, greedy, \
+                 astar, weighted_astar, iddfs, dls, ida_star, beam, bidirectional"
+            )))
+        }
+    };
+    Ok(r)
+}
+
+// ---------------------------------------------------------------------------
+// Implicit graph backed by a Python successor callable
+// ---------------------------------------------------------------------------
+
+/// Encode a state (int → scalar, tuple/list of ints → tuple) for Python.
+fn state_to_py(py: Python<'_>, v: &[i64]) -> Py<PyAny> {
+    if v.len() == 1 {
+        v[0].into_py(py)
+    } else {
+        PyTuple::new_bound(py, v).into()
+    }
+}
+
+/// Decode a Python state into the internal `Vec<i64>` key.
+fn py_to_state(obj: &Bound<'_, PyAny>) -> PyResult<Vec<i64>> {
+    if let Ok(scalar) = obj.extract::<i64>() {
+        return Ok(vec![scalar]);
+    }
+    obj.extract::<Vec<i64>>()
+        .map_err(|_| value_err("implicit-graph states must be an int or a sequence of ints"))
+}
+
+struct PyImplicitGraph {
+    successors: Py<PyAny>,
+}
+
+impl Graph for PyImplicitGraph {
+    type Node = Vec<i64>;
+
+    fn neighbors(&self, node: &Vec<i64>) -> Vec<(Vec<i64>, f64)> {
+        Python::with_gil(|py| {
+            let arg = state_to_py(py, node);
+            let result = self
+                .successors
+                .call1(py, (arg,))
+                .expect("the successors callable raised an exception");
+            let pairs: Vec<(Py<PyAny>, f64)> = result
+                .extract(py)
+                .expect("successors must return a list of (state, cost) pairs");
+            pairs
+                .into_iter()
+                .map(|(state, cost)| {
+                    let key = py_to_state(state.bind(py)).expect("invalid successor state");
+                    (key, cost)
+                })
+                .collect()
+        })
+    }
+}
+
+struct PyHeuristic {
+    func: Option<Py<PyAny>>,
+}
+
+impl Clone for PyHeuristic {
+    fn clone(&self) -> Self {
+        // `Py<PyAny>` clones by bumping the refcount, which needs the GIL.
+        Python::with_gil(|py| PyHeuristic {
+            func: self.func.as_ref().map(|f| f.clone_ref(py)),
+        })
+    }
+}
+
+impl Heuristic<Vec<i64>> for PyHeuristic {
+    fn estimate(&self, node: &Vec<i64>, goal: &Vec<i64>) -> f64 {
+        match &self.func {
+            None => 0.0,
+            Some(f) => Python::with_gil(|py| {
+                let args = (state_to_py(py, node), state_to_py(py, goal));
+                f.call1(py, args)
+                    .and_then(|v| v.extract::<f64>(py))
+                    .expect("the heuristic callable must return a float")
+            }),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Public Python functions
+// ---------------------------------------------------------------------------
+
+/// Search a 2-D maze given as an ASCII map (`#` wall, `S` start, `G` goal).
+#[pyfunction]
+#[pyo3(signature = (
+    map, algorithm="astar", heuristic="manhattan", record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None, diagonal=false
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_grid(
+    py: Python<'_>,
+    map: &str,
+    algorithm: &str,
+    heuristic: &str,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+    diagonal: bool,
+) -> PyResult<PySearchResult> {
+    if !map.contains('S') || !map.contains('G') {
+        return Err(value_err(
+            "the ASCII map must contain a start 'S' and a goal 'G'",
+        ));
+    }
+    let (mut grid, start, goal) = GridGraph::from_ascii(map);
+    if diagonal {
+        grid = grid.with_diagonal(true);
+    }
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    let r = py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
+        match heuristic {
+            "zero" => run_algo(&grid, start, goal, algorithm, Zero, record, &opts),
+            "manhattan" => run_algo(&grid, start, goal, algorithm, Manhattan, record, &opts),
+            "euclidean" => run_algo(&grid, start, goal, algorithm, Euclidean, record, &opts),
+            "octile" => run_algo(&grid, start, goal, algorithm, Octile, record, &opts),
+            other => Err(value_err(format!(
+                "unknown heuristic: '{other}'. Available: zero, manhattan, euclidean, octile"
+            ))),
+        }
+    })?;
+    to_py_result(py, r)
+}
+
+/// Search an explicit weighted graph given as an edge list over `0..num_nodes`.
+/// Heuristics need geometry, so graphs use the zero heuristic (informed names
+/// degenerate to their uninformed behaviour).
+#[pyfunction]
+#[pyo3(signature = (
+    num_nodes, edges, start, goal, algorithm="bfs", undirected=true,
+    record=true, beam_width=None, depth_limit=None, max_nodes=None
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_graph(
+    py: Python<'_>,
+    num_nodes: usize,
+    edges: Vec<(usize, usize, f64)>,
+    start: usize,
+    goal: usize,
+    algorithm: &str,
+    undirected: bool,
+    record: bool,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+) -> PyResult<PySearchResult> {
+    if start >= num_nodes || goal >= num_nodes {
+        return Err(value_err("start and goal must be < num_nodes"));
+    }
+    let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
+    let opts = RunOpts {
+        weight: 1.0,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    let r = py.allow_threads(|| run_algo(&graph, start, goal, algorithm, Zero, record, &opts))?;
+    to_py_result(py, r)
+}
+
+/// Search an implicit graph defined by a Python successor callable
+/// `successors(state) -> [(state, cost), ...]`. States are ints or tuples of
+/// ints. `heuristic`, if given, is a callable `h(state, goal) -> float`.
+#[pyfunction]
+#[pyo3(signature = (
+    successors, start, goal, algorithm="astar", heuristic=None, record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_implicit(
+    py: Python<'_>,
+    successors: Py<PyAny>,
+    start: Bound<'_, PyAny>,
+    goal: Bound<'_, PyAny>,
+    algorithm: &str,
+    heuristic: Option<Py<PyAny>>,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+) -> PyResult<PySearchResult> {
+    let start_v = py_to_state(&start)?;
+    let goal_v = py_to_state(&goal)?;
+    let graph = PyImplicitGraph { successors };
+    let h = PyHeuristic { func: heuristic };
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    // The search calls back into Python on every expansion, so we keep the GIL.
+    let r = run_algo(&graph, start_v, goal_v, algorithm, h, record, &opts)?;
+    to_py_result(py, r)
+}
+
+// --- instance generators ---------------------------------------------------
+
+/// Unique undirected edges `(u, v, 1.0)` with `u < v`.
+fn undirected_edges(graph: &CsrGraph) -> Vec<(usize, usize, f64)> {
+    graph
+        .edges()
+        .into_iter()
+        .filter(|&(u, v, _)| u < v)
+        .collect()
+}
+
+/// Erdős–Rényi `G(n, p)` random graph → edge list.
+#[pyfunction]
+fn gen_erdos_renyi(n: usize, p: f64, seed: u64) -> Vec<(usize, usize, f64)> {
+    undirected_edges(&erdos_renyi(n, p, seed))
+}
+
+/// Barabási–Albert scale-free graph → edge list.
+#[pyfunction]
+fn gen_barabasi_albert(n: usize, m: usize, seed: u64) -> Vec<(usize, usize, f64)> {
+    undirected_edges(&barabasi_albert(n, m, seed))
+}
+
+/// Watts–Strogatz small-world graph → edge list.
+#[pyfunction]
+fn gen_watts_strogatz(n: usize, k: usize, beta: f64, seed: u64) -> Vec<(usize, usize, f64)> {
+    undirected_edges(&watts_strogatz(n, k, beta, seed))
+}
+
+/// A named sample maze as an ASCII map. `name` is `"open"` or `"wall"`.
+#[pyfunction]
+fn sample_maze(name: &str) -> PyResult<String> {
+    match name {
+        "open" => Ok(SAMPLE_OPEN.to_string()),
+        "wall" => Ok(SAMPLE_WALL.to_string()),
+        other => Err(value_err(format!(
+            "unknown sample maze: '{other}'. Available: open, wall"
+        ))),
+    }
+}
+
+/// A reproducible random maze rendered as an ASCII map (with `S`/`G`).
+#[pyfunction]
+fn random_maze_ascii(width: i32, height: i32, obstacle_density: f64, seed: u64) -> String {
+    let m = random_maze(width, height, obstacle_density, seed);
+    let mut out = String::new();
+    for row in 0..height {
+        for col in 0..width {
+            let c = Cell::new(row, col);
+            let ch = if c == m.start {
+                'S'
+            } else if c == m.goal {
+                'G'
+            } else if m.grid.is_blocked(c) {
+                '#'
+            } else {
+                '.'
+            };
+            out.push(ch);
+        }
+        if row + 1 < height {
+            out.push('\n');
+        }
+    }
+    out
+}
+
+#[pymodule]
+fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(search_grid, m)?)?;
+    m.add_function(wrap_pyfunction!(search_graph, m)?)?;
+    m.add_function(wrap_pyfunction!(search_implicit, m)?)?;
+    m.add_function(wrap_pyfunction!(gen_erdos_renyi, m)?)?;
+    m.add_function(wrap_pyfunction!(gen_barabasi_albert, m)?)?;
+    m.add_function(wrap_pyfunction!(gen_watts_strogatz, m)?)?;
+    m.add_function(wrap_pyfunction!(sample_maze, m)?)?;
+    m.add_function(wrap_pyfunction!(random_maze_ascii, m)?)?;
+    m.add_class::<PySearchResult>()?;
+    Ok(())
+}
