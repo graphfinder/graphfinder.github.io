@@ -108,6 +108,15 @@ cdylib resolves Python symbols at load time) — always build the binding via
   visualization; results always carry `nodes_expanded`, `nodes_generated`,
   `max_frontier_size`, `stop_reason`.
 
+## Releasing
+
+Tag-driven. Bump the version in `Cargo.toml`, `pyproject.toml` and
+`CITATION.cff`, commit, then `git tag vX.Y.Z && git push origin main vX.Y.Z`.
+That fires `release-pypi`, `release-crates` and `release-github`. Both package
+publishes use **Trusted Publishing (OIDC)** — no tokens stored in the repo. See
+the "Releasing a new version" section in `CONTRIBUTING.md` for the full
+checklist and the one-time publisher setup.
+
 ## How to extend (typical tasks)
 
 ### Add an algorithm
