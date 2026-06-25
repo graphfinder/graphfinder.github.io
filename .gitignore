@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+Cargo.lock.bak
+.venv/
+__pycache__/
+*.so
+.pytest_cache/
+.DS_Store
+site/

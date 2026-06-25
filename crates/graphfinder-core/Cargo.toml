@@ -1,0 +1,15 @@
+[package]
+name = "graphfinder-core"
+description = "Graph traversal & pathfinding (informed and uninformed search) with a trait-based, instrumented core."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords = ["graph", "search", "pathfinding", "astar", "bfs"]
+categories = ["algorithms", "science"]
+
+[dependencies]
+rand.workspace = true
+rand_chacha.workspace = true

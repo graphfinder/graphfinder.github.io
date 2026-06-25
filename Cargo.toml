@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/graphfinder-core",
+    "crates/graph-py",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Jose L. Salmeron"]
+repository = "https://github.com/turboswarm/graphfinder"
+homepage = "https://turboswarm.github.io/graphfinder"
+
+[workspace.dependencies]
+rand = "0.8"
+rand_chacha = "0.3"   # RNG with reproducible seed (reproducibility matters)
