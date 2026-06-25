@@ -7,8 +7,8 @@ authors:
     given-names: "Jose L."
     orcid: "https://orcid.org/0000-0001-7811-3716"
     affiliation: "CUNEF Universidad"
-repository-code: "https://github.com/turboswarm/graphfinder"
-url: "https://turboswarm.github.io/graphfinder"
+repository-code: "https://github.com/graphfinder/graphfinder.github.io"
+url: "https://graphfinder.github.io"
 license: MIT
 version: 0.1.0
 date-released: "2026-06-25"

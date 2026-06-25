@@ -8,7 +8,7 @@ and performance work.
 
 ## Reporting bugs and requesting features
 
-Please open an issue at <https://github.com/turboswarm/graphfinder/issues> and
+Please open an issue at <https://github.com/graphfinder/graphfinder.github.io/issues> and
 include, where relevant:
 
 - what you expected to happen and what happened instead;

@@ -32,9 +32,9 @@ viz = ["pillow", "networkx"]   # pillow: GIF export · networkx: nicer graph lay
 docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]
-Homepage = "https://turboswarm.github.io/graphfinder"
-Repository = "https://github.com/turboswarm/graphfinder"
-Issues = "https://github.com/turboswarm/graphfinder/issues"
+Homepage = "https://graphfinder.github.io"
+Repository = "https://github.com/graphfinder/graphfinder.github.io"
+Issues = "https://github.com/graphfinder/graphfinder.github.io/issues"
 
 [tool.maturin]
 manifest-path = "crates/graph-py/Cargo.toml"

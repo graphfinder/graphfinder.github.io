@@ -6,7 +6,7 @@
 **visualization, algorithm comparison and code clarity**. Built for teaching.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/turboswarm/graphfinder/main/assets/astar_maze.gif" alt="A* exploring a maze" width="360">
+  <img src="https://raw.githubusercontent.com/graphfinder/graphfinder.github.io/main/assets/astar_maze.gif" alt="A* exploring a maze" width="360">
 </p>
 
 ## The one idea

@@ -1,8 +1,8 @@
 site_name: graphfinder
 site_description: Graph traversal & pathfinding (informed and uninformed search) with a Rust core.
-site_url: https://turboswarm.github.io/graphfinder/
-repo_url: https://github.com/turboswarm/graphfinder
-repo_name: turboswarm/graphfinder
+site_url: https://graphfinder.github.io/
+repo_url: https://github.com/graphfinder/graphfinder.github.io
+repo_name: graphfinder/graphfinder.github.io
 docs_dir: docs
 site_dir: site
 

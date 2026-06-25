@@ -10,8 +10,8 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 authors = ["Jose L. Salmeron"]
-repository = "https://github.com/turboswarm/graphfinder"
-homepage = "https://turboswarm.github.io/graphfinder"
+repository = "https://github.com/graphfinder/graphfinder.github.io"
+homepage = "https://graphfinder.github.io"
 
 [workspace.dependencies]
 rand = "0.8"

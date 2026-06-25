@@ -19,7 +19,7 @@ pip install "graphfinder[viz]"   # pillow + networkx
 Requires [Rust](https://rustup.rs) and Python ≥ 3.9.
 
 ```bash
-git clone https://github.com/turboswarm/graphfinder
+git clone https://github.com/graphfinder/graphfinder.github.io
 cd graphfinder
 python -m venv .venv && source .venv/bin/activate
 pip install maturin
