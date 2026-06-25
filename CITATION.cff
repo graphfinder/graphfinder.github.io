@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "graphfinder: Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
+type: software
+authors:
+  - family-names: "Salmeron"
+    given-names: "Jose L."
+    orcid: "https://orcid.org/0000-0001-7811-3716"
+    affiliation: "CUNEF Universidad"
+repository-code: "https://github.com/turboswarm/graphfinder"
+url: "https://turboswarm.github.io/graphfinder"
+license: MIT
+version: 0.1.0
+date-released: "2026-06-25"
+keywords:
+  - graph search
+  - pathfinding
+  - A*
+  - Dijkstra
+  - heuristic search
+  - rust
+  - python
