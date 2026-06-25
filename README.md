@@ -1,6 +1,15 @@
 # graphfinder
 
 <p align="center">
+  <a href="https://pypi.org/project/graphfinder/"><img src="https://img.shields.io/pypi/v/graphfinder?logo=pypi&logoColor=white" alt="PyPI"></a>
+  <a href="https://crates.io/crates/graphfinder-core"><img src="https://img.shields.io/crates/v/graphfinder-core?logo=rust&logoColor=white" alt="crates.io"></a>
+  <a href="https://github.com/graphfinder/graphfinder.github.io/actions/workflows/ci.yml"><img src="https://github.com/graphfinder/graphfinder.github.io/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://graphfinder.github.io/"><img src="https://img.shields.io/badge/docs-graphfinder.github.io-3f51b5" alt="Docs"></a>
+  <img src="https://img.shields.io/pypi/pyversions/graphfinder?logo=python&logoColor=white" alt="Python versions">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT">
+</p>
+
+<p align="center">
   <img src="assets/astar_maze.gif" alt="A* exploring a 25x25 maze" width="360">
   <br>
   <em>A* exploring a maze — blue is the expanded frontier, gold is the final
