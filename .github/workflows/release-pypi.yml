@@ -3,10 +3,12 @@ name: release-pypi
 # Builds abi3 wheels (one per platform, CPython >= 3.9) and an sdist, then
 # publishes `graphfinder` to PyPI when a version tag is pushed.
 #
-# Publishing uses a PyPI API token stored as the repository secret
-# PYPI_API_TOKEN. (For the first upload, use an account-scoped token, since the
-# project does not exist yet.) To switch to Trusted Publishing instead, drop the
-# `password` line and add `id-token: write` permission + a configured publisher.
+# Publishing uses PyPI Trusted Publishing (OIDC) — NO API token. Configure a
+# publisher (or a "pending publisher" for the first upload) at
+# https://pypi.org/manage/account/publishing/ with:
+#   PyPI Project Name: graphfinder
+#   Owner: graphfinder · Repository: graphfinder.github.io
+#   Workflow name: release-pypi.yml · Environment: (leave empty)
 #
 # Trigger with:  git tag v0.1.0 && git push --tags
 
@@ -92,6 +94,8 @@ jobs:
   release:
     needs: [linux, macos, windows, sdist]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # OIDC token for PyPI Trusted Publishing (no API token)
     steps:
       - uses: actions/download-artifact@v5
         with:
@@ -101,5 +105,4 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
-          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true # don't fail if a file was already uploaded
