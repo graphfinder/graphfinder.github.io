@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] — 2026-06-26
+
+### Changed
+- CI/release workflows moved to the Node 24 action majors (`cache@v6`,
+  `upload-artifact@v7`, `download-artifact@v8`, `deploy-pages@v5`,
+  `upload-pages-artifact@v5`), removing the Node 20 deprecation warnings.
+  Maintenance only — no library or API changes.
+
 ## [0.2.0] — 2026-06-26
 
 ### Added
@@ -38,5 +46,6 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.2.1]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.1
 [0.2.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.0
 [0.1.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.1.0
