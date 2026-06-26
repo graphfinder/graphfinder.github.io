@@ -121,6 +121,40 @@ def test_osm_route_requires_osmnx():
             osm.route(g, (0.0, 0.0), (0.0, 0.01))
 
 
+def test_torch_as_heuristic_bridge():
+    # The bridge is framework-agnostic: any callable model + encoder works.
+    from graphfinder.integrations import torch as gft
+
+    model = lambda feat: feat[0] + feat[1]
+    encode = lambda node, goal: (abs(node[0] - goal[0]), abs(node[1] - goal[1]))
+    h = gft.as_heuristic(model, encode)
+    assert h((0, 0), (0, 3)) == 3.0
+    # ...and it plugs straight into A* as a custom heuristic.
+    r = gf.search(gf.sample_maze("wall"), algorithm="astar", heuristic=h)
+    assert r.found
+
+
+def test_agents_make_router():
+    from graphfinder.integrations import agents
+
+    router = agents.make_router(EDGES)
+    out = router("A", "E", algorithm="dijkstra")
+    assert out["found"] and out["path"] == ["A", "B", "C", "E"] and out["cost"] == 3.0
+    # never raises on bad input — returns an error dict (safe for agents)
+    assert "error" in router("A", "Z")  # unknown target
+    assert "error" in router("A", "E", algorithm="rm -rf")  # disallowed algorithm
+
+
+def test_agents_langchain_tool():
+    pytest.importorskip("langchain_core")
+    from graphfinder.integrations import agents
+
+    tool = agents.as_langchain_tool(EDGES, name="route")
+    assert tool.name == "route"
+    res = tool.invoke({"source": "A", "target": "E"})
+    assert res["found"] and res["path"][0] == "A" and res["path"][-1] == "E"
+
+
 def test_lazy_attribute_access():
     # gf.integrations.<name> works without importing submodules explicitly.
     pytest.importorskip("networkx")

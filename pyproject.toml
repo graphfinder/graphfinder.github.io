@@ -8,7 +8,7 @@ build-backend = "maturin"
 
 [project]
 name = "graphfinder"
-version = "0.5.0"
+version = "0.6.0"
 description = "Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
 readme = "python/README.md"
 requires-python = ">=3.9"
@@ -34,6 +34,8 @@ networkx = ["networkx"]
 scipy = ["scipy"]
 pandas = ["pandas"]
 osm = ["osmnx"]   # geographic routing on real road networks
+torch = ["torch"]   # learned-heuristic tutorial (the bridge itself needs nothing)
+agents = ["langchain-core", "pydantic"]   # LLM routing tool
 docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] — 2026-06-26
+
+### Added
+- **PyTorch / learned heuristics** (`graphfinder.integrations.torch`):
+  `as_heuristic(model, encode)` wraps any model (PyTorch, NumPy, scikit-learn)
+  into a custom A\* heuristic. New tutorial + example training an MLP that beats
+  Manhattan on weighted terrain (`examples/learned_heuristic.py`).
+- **Agents / LangChain** (`graphfinder.integrations.agents`): `make_router`
+  builds a safe, dependency-free bound router (validates input, caps `max_nodes`,
+  allow-listed algorithms, never raises); `as_langchain_tool` wraps it as a
+  LangChain `StructuredTool` (`[agents]` extra).
+
 ## [0.5.0] — 2026-06-26
 
 ### Added
@@ -90,6 +102,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.6.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.6.0
 [0.5.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.5.0
 [0.4.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.4.0
 [0.3.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.3.0

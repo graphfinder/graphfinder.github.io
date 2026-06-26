@@ -9,6 +9,8 @@ pip install "graphfinder[networkx]"   # search over networkx graphs
 pip install "graphfinder[scipy]"      # search over scipy.sparse adjacency
 pip install "graphfinder[pandas]"     # edge-list DataFrames + result tables
 pip install "graphfinder[osm]"        # route on real road networks (OSMnx)
+pip install "graphfinder[torch]"      # learned-heuristic tutorial
+pip install "graphfinder[agents]"     # LangChain routing tool
 ```
 
 Every `search` helper returns a `LabeledResult`: the `path` is mapped back to
@@ -116,8 +118,52 @@ Because the haversine heuristic is in metres and OSMnx edge `length` is in metre
 A\* is admissible and returns the shortest route while expanding far fewer nodes
 than Dijkstra.
 
+## PyTorch — learned heuristics
+
+Turn a learned model into an A\* heuristic. The bridge is framework-agnostic (it
+just calls `model(encode(node, goal))` and coerces to `float`), so it works with
+PyTorch, NumPy or scikit-learn:
+
+```python
+from graphfinder.integrations import torch as gft
+
+h = gft.as_heuristic(model, encode=lambda node, goal: featurize(node, goal))
+gf.search(maze, algorithm="astar", heuristic=h)
+```
+
+The full worked example — training a small MLP to predict cost-to-goal and
+beating Manhattan on weighted terrain — is in the
+[learned-heuristic tutorial](tutorials/learned-heuristic.md):
+
+<p align="center">
+  <img src="/assets/learned_heuristic.png" alt="learned heuristic comparison" width="680">
+</p>
+
+## Agents (LangChain) — a safe routing tool
+
+Expose routing as an LLM tool. `make_router` builds a dependency-free, bound
+`router(source, target, algorithm=None) -> dict` that validates inputs, caps work
+with `max_nodes`, restricts the algorithm to a safe allow-list, and **never
+raises** — so it is safe inside an agent loop:
+
+```python
+from graphfinder.integrations import agents
+
+router = agents.make_router(edges)            # edges: (u, v[, weight]) with any labels
+router("A", "E", algorithm="dijkstra")
+# {'found': True, 'path': ['A','B','C','E'], 'cost': 3.0, 'nodes_expanded': ..., 'stop_reason': 'goal'}
+```
+
+Wrap it as a LangChain `StructuredTool` (needs `langchain-core`):
+
+```python
+tool = agents.as_langchain_tool(edges, name="find_route")
+tool.invoke({"source": "A", "target": "E"})
+```
+
+The graph is bound at tool-creation time; the agent only chooses `source`,
+`target` and an allowed `algorithm`.
+
 ## More integrations
 
-The roadmap also includes a **PyTorch** learned-heuristic tutorial (plugging a
-neural estimate into A\* via the [custom heuristic](heuristics.md) hook) and a
-**LangChain/LangGraph** routing tool. Open an issue if you'd like one prioritised.
+Have an idea (igraph, Graphviz export, a Gymnasium env, …)? Open an issue.

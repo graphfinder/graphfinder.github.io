@@ -42,6 +42,7 @@ nav:
       - Grid pathfinding: tutorials/grid.md
       - Comparing algorithms: tutorials/comparison.md
       - Random & implicit graphs: tutorials/graphs.md
+      - Learned heuristic (PyTorch): tutorials/learned-heuristic.md
   - Concepts:
       - Algorithms: algorithms.md
       - Heuristics: heuristics.md

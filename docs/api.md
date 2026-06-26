@@ -72,3 +72,14 @@ See [Integrations](integrations.md) for usage. Each returns a `LabeledResult`.
         - route
         - plot_route
         - haversine
+
+::: graphfinder.integrations.torch
+    options:
+      members:
+        - as_heuristic
+
+::: graphfinder.integrations.agents
+    options:
+      members:
+        - make_router
+        - as_langchain_tool
