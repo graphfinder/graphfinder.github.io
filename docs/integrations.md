@@ -8,6 +8,7 @@ importing graphfinder pulls in none of them:
 pip install "graphfinder[networkx]"   # search over networkx graphs
 pip install "graphfinder[scipy]"      # search over scipy.sparse adjacency
 pip install "graphfinder[pandas]"     # edge-list DataFrames + result tables
+pip install "graphfinder[osm]"        # route on real road networks (OSMnx)
 ```
 
 Every `search` helper returns a `LabeledResult`: the `path` is mapped back to
@@ -88,10 +89,35 @@ gfpd.compare_dataframe({      # one row per algorithm
 max_frontier_size, path_len` — the tabular companion to
 [`viz.compare`](visualization.md).
 
+## OSMnx — routing on real road networks
+
+Route over geographic graphs with an A\* that uses a great-circle (haversine)
+heuristic. The core `search` works on **any** networkx graph whose nodes have
+`x` (lon) / `y` (lat) attributes — as OSMnx graphs do — and needs only
+`networkx`. The `route` / `plot_route` helpers snap lat/lon points to nodes and
+draw the route on the map, and require `osmnx` (`pip install "graphfinder[osm]"`).
+
+```python
+import osmnx as ox
+from graphfinder.integrations import osm
+
+G = ox.graph_from_place("Madrid, Spain", network_type="drive")
+
+# Route between two (lat, lon) points — nearest nodes are found automatically.
+r = osm.route(G, (40.4170, -3.7035), (40.4531, -3.6883))   # Sol → Bernabéu
+print(r.cost, "metres,", len(r.path), "nodes,", r.nodes_expanded, "expanded")
+osm.plot_route(G, r)
+
+# Or search between known node ids directly (networkx-only):
+osm.search(G, orig_id, dest_id, algorithm="astar")
+```
+
+Because the haversine heuristic is in metres and OSMnx edge `length` is in metres,
+A\* is admissible and returns the shortest route while expanding far fewer nodes
+than Dijkstra.
+
 ## More integrations
 
-NetworkX, SciPy and pandas are the first batch. Candidates on the roadmap include
-**OSMnx** (route on real road networks), a **PyTorch** learned-heuristic tutorial
-(plugging a neural estimate into A\* via the [custom heuristic](heuristics.md)
-hook), and a **LangChain/LangGraph** routing tool. Open an issue if you'd like one
-prioritised.
+The roadmap also includes a **PyTorch** learned-heuristic tutorial (plugging a
+neural estimate into A\* via the [custom heuristic](heuristics.md) hook) and a
+**LangChain/LangGraph** routing tool. Open an issue if you'd like one prioritised.

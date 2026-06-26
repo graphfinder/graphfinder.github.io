@@ -77,6 +77,50 @@ def test_pandas_search_and_tables():
     assert "nodes_expanded" in table.columns
 
 
+def test_osm_haversine():
+    from graphfinder.integrations import osm
+
+    assert osm.haversine(0, 0, 0, 0) == 0.0
+    # ~1 degree of latitude ≈ 111 km.
+    d = osm.haversine(0.0, 0.0, 1.0, 0.0)
+    assert 110_000 < d < 112_000
+
+
+def test_osm_geographic_astar():
+    nx = pytest.importorskip("networkx")
+    from graphfinder.integrations import osm
+
+    # A geographic triangle: the direct edge 1→3 is shorter than 1→2→3.
+    g = nx.Graph()
+    g.add_node(1, x=0.0, y=0.0)
+    g.add_node(2, x=0.0, y=0.01)  # north
+    g.add_node(3, x=0.01, y=0.0)  # east
+    pairs = [(1, 2), (2, 3), (1, 3)]
+    for u, v in pairs:
+        nu, nv = g.nodes[u], g.nodes[v]
+        g.add_edge(u, v, length=osm.haversine(nu["y"], nu["x"], nv["y"], nv["x"]))
+
+    r = osm.search(g, 1, 3, algorithm="astar")
+    assert r.found
+    assert r.path == [1, 3]  # direct beats the detour
+    assert r.cost == pytest.approx(g[1][3]["length"])
+
+
+def test_osm_route_requires_osmnx():
+    nx = pytest.importorskip("networkx")
+    from graphfinder.integrations import osm
+
+    g = nx.Graph()
+    g.add_node(1, x=0.0, y=0.0)
+    g.add_node(2, x=0.01, y=0.0)
+    g.add_edge(1, 2, length=1.0)
+    try:
+        import osmnx  # noqa: F401
+    except ImportError:
+        with pytest.raises(ImportError, match=r"graphfinder\[osm\]"):
+            osm.route(g, (0.0, 0.0), (0.0, 0.01))
+
+
 def test_lazy_attribute_access():
     # gf.integrations.<name> works without importing submodules explicitly.
     pytest.importorskip("networkx")

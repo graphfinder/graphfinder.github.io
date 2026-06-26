@@ -64,3 +64,11 @@ See [Integrations](integrations.md) for usage. Each returns a `LabeledResult`.
         - search
         - trace_dataframe
         - compare_dataframe
+
+::: graphfinder.integrations.osm
+    options:
+      members:
+        - search
+        - route
+        - plot_route
+        - haversine

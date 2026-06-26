@@ -8,7 +8,7 @@ build-backend = "maturin"
 
 [project]
 name = "graphfinder"
-version = "0.4.0"
+version = "0.5.0"
 description = "Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
 readme = "python/README.md"
 requires-python = ">=3.9"
@@ -33,6 +33,7 @@ viz = ["pillow", "networkx"]   # pillow: GIF export · networkx: nicer graph lay
 networkx = ["networkx"]
 scipy = ["scipy"]
 pandas = ["pandas"]
+osm = ["osmnx"]   # geographic routing on real road networks
 docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]

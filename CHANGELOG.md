@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-06-26
+
+### Added
+- **OSMnx / geographic routing** (`graphfinder.integrations.osm`):
+  - `search` runs A\* between nodes of a geographic networkx graph (nodes with
+    `x`/`y` lon-lat) using a great-circle **haversine** heuristic — needs only
+    `networkx`, and is admissible when edge `length` is in metres.
+  - `route` (snap two lat/lon points to nearest nodes) and `plot_route` are
+    OSMnx convenience wrappers (`[osm]` extra).
+  - `haversine(lat1, lon1, lat2, lon2)` helper (metres).
+
 ## [0.4.0] — 2026-06-26
 
 ### Added
@@ -79,6 +90,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.5.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.5.0
 [0.4.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.4.0
 [0.3.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.3.0
 [0.2.1]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.1
