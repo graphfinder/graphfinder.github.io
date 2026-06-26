@@ -67,8 +67,8 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - **Instrumentation:** every run reports the path, cost, nodes expanded/
   generated, peak frontier, stop reason, and a per-step trace.
 - **[Integrations](integrations.md):** **NetworkX**, **SciPy** sparse adjacency,
-  **pandas** DataFrames, **OSMnx** road networks, a **PyTorch** learned-heuristic
-  bridge, and a safe **LangChain** routing tool.
+  **pandas** DataFrames, **OSMnx** road networks, and a safe **LangChain**
+  routing tool.
 - **Reproducibility:** seeded generators and deterministic tie-breaking.
 
 ## Where to next

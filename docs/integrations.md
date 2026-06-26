@@ -9,7 +9,6 @@ pip install "graphfinder[networkx]"   # search over networkx graphs
 pip install "graphfinder[scipy]"      # search over scipy.sparse adjacency
 pip install "graphfinder[pandas]"     # edge-list DataFrames + result tables
 pip install "graphfinder[osm]"        # route on real road networks (OSMnx)
-pip install "graphfinder[torch]"      # learned-heuristic tutorial
 pip install "graphfinder[agents]"     # LangChain routing tool
 ```
 
@@ -117,27 +116,6 @@ osm.search(G, orig_id, dest_id, algorithm="astar")
 Because the haversine heuristic is in metres and OSMnx edge `length` is in metres,
 A\* is admissible and returns the shortest route while expanding far fewer nodes
 than Dijkstra.
-
-## PyTorch — learned heuristics
-
-Turn a learned model into an A\* heuristic. The bridge is framework-agnostic (it
-just calls `model(encode(node, goal))` and coerces to `float`), so it works with
-PyTorch, NumPy or scikit-learn:
-
-```python
-from graphfinder.integrations import torch as gft
-
-h = gft.as_heuristic(model, encode=lambda node, goal: featurize(node, goal))
-gf.search(maze, algorithm="astar", heuristic=h)
-```
-
-The full worked example — training a small MLP to predict cost-to-goal and
-beating Manhattan on weighted terrain — is in the
-[learned-heuristic tutorial](tutorials/learned-heuristic.md):
-
-<p align="center">
-  <img src="/assets/learned_heuristic.png" alt="learned heuristic comparison" width="680">
-</p>
 
 ## Agents (LangChain) — a safe routing tool
 

@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] — 2026-06-26
+
+### Removed
+- The **PyTorch learned-heuristic** integration (`graphfinder.integrations.torch`,
+  the `[torch]` extra, the tutorial and example) shipped in 0.6.0. A learned
+  heuristic is inadmissible — it forfeits A\*'s optimality guarantee — and the
+  bridge was a trivial wrapper pulling in a heavy dependency, so it did not earn
+  a place as a first-class integration. The core **custom-heuristic hook**
+  (`heuristic=<callable>`) is unchanged: you can still pass any estimator,
+  learned or not — see [Heuristics](https://graphfinder.github.io/heuristics/).
+
 ## [0.6.0] — 2026-06-26
 
 ### Added
@@ -102,6 +113,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.7.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.7.0
 [0.6.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.6.0
 [0.5.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.5.0
 [0.4.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.4.0

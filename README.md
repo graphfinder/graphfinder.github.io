@@ -119,8 +119,8 @@ Weighted A*        20       yes        25         5
   bar charts), `plot_graph` (general graph coloured by search state).
 - **Integrations** (`graphfinder.integrations`): **NetworkX**, **SciPy** sparse
   adjacency, **pandas** edge-list DataFrames, **OSMnx** road networks (geographic
-  A\*), a **PyTorch** learned-heuristic bridge, and a safe **LangChain** routing
-  tool. Optional extras: `pip install graphfinder[networkx]`.
+  A\*), and a safe **LangChain** routing tool. Optional extras:
+  `pip install graphfinder[networkx]`.
 - **Reproducibility:** seeded random maze generator; deterministic tie-breaking.
 
 ## How is this different from networkx / rustworkx?

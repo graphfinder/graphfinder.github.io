@@ -75,7 +75,7 @@ def _require(module: str, extra: str):
 
 # PEP 562: let ``gf.integrations.networkx`` import the submodule on demand without
 # pulling any extra at package-import time.
-_SUBMODULES = ("networkx", "scipy", "pandas", "osm", "torch", "agents")
+_SUBMODULES = ("networkx", "scipy", "pandas", "osm", "agents")
 
 
 def __getattr__(name: str):
