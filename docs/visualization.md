@@ -43,6 +43,31 @@ Stack several to compare algorithms at a glance:
   <img src="/assets/algorithms_grid.png" alt="Six algorithms" width="820">
 </p>
 
+## plot_costs — terrain heatmap
+
+For [weighted grids](domains.md#weighted-terrain), `plot_costs` shows the terrain
+as a heatmap (walls left blank). `plot_grid`/`animate_grid` also shade the
+terrain underneath the search, so you can see *what was explored over what
+terrain*.
+
+```python
+terrain = [[1.0]*24 for _ in range(24)]
+for r in range(4, 20):
+    for c in range(9, 15):
+        terrain[r][c] = 9.0                      # an expensive plateau
+
+r = gf.search_grid_costs(terrain, (0, 0), (23, 23), algorithm="astar", record=True)
+gf.viz.plot_costs(terrain)                       # the heatmap
+gf.viz.plot_grid(terrain, r)                     # A* skirting the costly region
+```
+
+<p align="center">
+  <img src="/assets/weighted.png" alt="terrain heatmap and A* path" width="720">
+</p>
+
+Grid viz accepts either an ASCII map (digits `1`–`9` are costs) or the cost
+matrix you passed to `search_grid_costs`.
+
 ## compare — work vs quality
 
 Pass a dict `{name: result}`; get bar charts of nodes expanded (work) and path

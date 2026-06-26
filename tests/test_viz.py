@@ -55,6 +55,24 @@ def test_compare_returns_figure():
     assert len(fig.axes) == 2
 
 
+def test_plot_grid_weighted_ascii():
+    r = gf.search("S99G\n1111", algorithm="astar", record=True)
+    ax = gf.viz.plot_grid("S99G\n1111", r)
+    assert len(ax.images) == 1
+
+
+def test_plot_grid_from_cost_matrix():
+    costs = [[1.0, 1.0, 1.0], [9.0, 0.0, 1.0], [1.0, 1.0, 1.0]]
+    r = gf.search_grid_costs(costs, start=(0, 0), goal=(2, 0), algorithm="astar", record=True)
+    ax = gf.viz.plot_grid(costs, r)  # cost matrix accepted directly
+    assert len(ax.images) == 1
+
+
+def test_plot_costs_heatmap():
+    ax = gf.viz.plot_costs("S99G\n1111")
+    assert len(ax.images) == 1  # the heatmap
+
+
 def test_plot_graph_returns_axes():
     edges = gf.gen_barabasi_albert(40, 2, seed=1)
     r = gf.search_graph(40, edges, 0, 39, algorithm="bfs", record=True)

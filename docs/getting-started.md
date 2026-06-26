@@ -53,6 +53,15 @@ gf.sample_maze("wall")                        # a corridor maze
 gf.random_maze_ascii(25, 25, 0.25, seed=0)    # reproducible random maze
 ```
 
+Cells can carry a **terrain cost**: a digit `1`–`9` in the map, or a full cost
+matrix via `search_grid_costs`. Then Dijkstra/A\* find the *cheapest* route, not
+just the shortest — see [weighted terrain](domains.md#weighted-terrain).
+
+```python
+gf.search("S99G\n1111", algorithm="ucs").cost          # 5.0 (avoids the 9s)
+gf.search_grid_costs([[1,1],[9,1]], (0,0), (1,1))      # arbitrary costs / walls
+```
+
 Grids can be 8-connected (diagonal moves) — pair that with the `octile`
 heuristic:
 

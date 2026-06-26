@@ -4,6 +4,25 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] — 2026-06-26
+
+### Added
+- **Weighted grids / terrain costs.** Every free `GridGraph` cell now carries a
+  movement cost (default `1.0`); entering a cell costs its terrain (× `√2`
+  diagonally). On a weighted grid Dijkstra/A\* genuinely differ from BFS — the
+  cheapest path is no longer the one with the fewest steps.
+  - ASCII maps accept digits `1`–`9` as per-cell terrain costs.
+  - New `search_grid_costs(costs, start, goal, …)` builds a grid from a matrix of
+    costs (a cell `≤ 0` or non-finite is a wall).
+  - Rust: `GridGraph::from_costs`, `set_cost`, `cost_at`, `is_weighted`.
+- **Visualization of terrain.** `viz.plot_costs` draws a terrain heatmap;
+  `plot_grid`/`animate_grid` now shade the terrain underneath the search and
+  accept either an ASCII map or a cost matrix.
+
+### Notes
+- The geometric heuristics stay admissible when terrain costs ≥ 1 (the usual
+  case); below 1, use `zero` or a min-cost-scaled heuristic.
+
 ## [0.2.1] — 2026-06-26
 
 ### Changed
@@ -46,6 +65,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.3.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.3.0
 [0.2.1]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.1
 [0.2.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.0
 [0.1.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.1.0

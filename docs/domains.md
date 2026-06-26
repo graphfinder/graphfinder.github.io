@@ -29,6 +29,46 @@ S.........
 The random generator does **not** guarantee solvability (so you can exercise the
 "no path" case) — check `r.found`.
 
+### Weighted terrain
+
+Cells are not just wall/free — every free cell has a **terrain cost** (default
+`1.0`). **Moving into a cell costs its terrain** (× `√2` for a diagonal step), so
+on a weighted grid Dijkstra/A\* genuinely differ from BFS: the cheapest path is
+no longer the one with the fewest steps.
+
+In an ASCII map, a digit `1`–`9` sets that cell's cost:
+
+```python
+# Top row is expensive terrain (9); the bottom row is a cheap detour.
+maze = "S99G\n1111"
+gf.search(maze, algorithm="bfs").cost   # 19.0  — fewest steps, but expensive
+gf.search(maze, algorithm="ucs").cost   # 5.0   — least cost, longer route
+```
+
+For arbitrary costs (beyond 1–9), pass a matrix to `search_grid_costs`; a cell
+that is `≤ 0` or non-finite is treated as a wall:
+
+```python
+costs = [
+    [1, 1, 1],
+    [9, 0, 1],   # 0 ⇒ wall
+    [1, 1, 1],
+]
+r = gf.search_grid_costs(costs, start=(0, 0), goal=(2, 0), algorithm="astar")
+```
+
+Visualize the terrain and how A\* skirts the expensive region:
+
+<p align="center">
+  <img src="/assets/weighted.png" alt="weighted terrain and A* path" width="720">
+</p>
+
+!!! note "Heuristics on weighted grids"
+    `manhattan`/`euclidean`/`octile` count grid steps, so they stay **admissible
+    only when every terrain cost ≥ 1** (the usual case). With sub-unit costs,
+    use `zero` (→ Dijkstra) or a heuristic scaled by the minimum cost. See
+    [Heuristics](heuristics.md).
+
 ## Explicit weighted graphs
 
 An adjacency structure held in memory (Compressed-Sparse-Row internally —

@@ -85,6 +85,35 @@ def test_grid_custom_heuristic_matches_named():
     assert custom.nodes_expanded == named.nodes_expanded
 
 
+def test_weighted_grid_ascii_digits():
+    # Top row is expensive (cost 9); bottom row is a cheap detour.
+    maze = "S99G\n1111"
+    bfs = gf.search(maze, algorithm="bfs", heuristic="zero")
+    ucs = gf.search(maze, algorithm="ucs", heuristic="zero")
+    assert bfs.cost == 19.0 and len(bfs.path) == 4  # fewest steps, expensive
+    assert ucs.cost == 5.0 and len(ucs.path) == 6  # least cost, longer
+    assert ucs.cost < bfs.cost
+
+
+def test_search_grid_costs_matrix():
+    # 0.0 is a wall; A* must detour around it and pay the terrain.
+    costs = [
+        [1.0, 1.0, 1.0],
+        [9.0, 0.0, 1.0],
+        [1.0, 1.0, 1.0],
+    ]
+    r = gf.search_grid_costs(costs, start=(0, 0), goal=(2, 0), algorithm="astar")
+    assert r.found
+    # (0,0)->(0,1)1->(0,2)1->(1,2)1->(2,2)1->(2,1)1->(2,0)1 = 6  beats going through 9
+    assert r.cost == 6.0
+
+
+def test_search_grid_costs_rejects_wall_endpoint():
+    costs = [[1.0, 1.0], [0.0, 1.0]]
+    with pytest.raises(ValueError):
+        gf.search_grid_costs(costs, start=(1, 0), goal=(0, 0))  # start is a wall
+
+
 def test_grid_invalid_heuristic_raises():
     with pytest.raises(ValueError):
         gf.search(gf.sample_maze("open"), algorithm="astar", heuristic=42)

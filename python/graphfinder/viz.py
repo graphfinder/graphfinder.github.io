@@ -2,10 +2,14 @@
 
 Requires matplotlib (``pip install graphfinder[viz]``). Functions:
   - animate_grid(map, result)          # the flagship: watch the search explore
-  - plot_grid(map, result, ax=None)    # static snapshot (visited + path)
+  - plot_grid(map, result, ax=None)    # static snapshot (terrain + visited + path)
+  - plot_costs(map, ax=None)           # terrain-cost heatmap with a colourbar
   - plot_frontier(result, ax=None)     # frontier size per expansion (memory)
   - compare(results)                   # bar charts across algorithms
   - plot_graph(n, edges, result)       # general graph, nodes coloured by state
+
+Grid helpers accept either an ASCII map (digits ``1``–``9`` are terrain costs) or
+the terrain-cost matrix passed to ``search_grid_costs``.
 
 matplotlib is imported lazily inside each function, so importing this module is
 cheap and never required for the core search API.
@@ -14,18 +18,26 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Cell state codes and their colours.
-#   0 free   1 wall   2 visited/expanded   3 path   4 start   5 goal
-_GRID_COLORS = ["#f5f5f5", "#37474f", "#90caf9", "#fbc02d", "#43a047", "#e53935"]
-_FREE, _WALL, _VISITED, _PATH, _START, _GOAL = range(6)
+# Overlay colours (RGB 0..1) drawn on top of the terrain background.
+_WALL_RGB = (0.216, 0.278, 0.310)  # slate
+_VISITED_RGB = (0.565, 0.792, 0.976)  # light blue
+_PATH_RGB = (0.984, 0.753, 0.141)  # gold
+_START_RGB = (0.263, 0.627, 0.278)  # green
+_GOAL_RGB = (0.898, 0.224, 0.208)  # red
+_FREE_RGB = (0.961, 0.961, 0.961)  # near-white (unweighted free cell)
 
 
 def _parse_map(map_str):
-    """Parse an ASCII map into ``(width, height, walls, start, goal)``."""
+    """Parse an ASCII map into ``(walls, start, goal, costs)``.
+
+    ``#`` is a wall, ``S``/``G`` the endpoints, a digit ``1``–``9`` sets that
+    cell's terrain cost, everything else is a free cell of cost ``1.0``.
+    """
     lines = [ln for ln in map_str.splitlines() if ln]
     height = len(lines)
     width = max((len(ln) for ln in lines), default=0)
     walls, start, goal = set(), None, None
+    costs = [[1.0] * width for _ in range(height)]
     for r, line in enumerate(lines):
         for c, ch in enumerate(line):
             if ch == "#":
@@ -34,41 +46,76 @@ def _parse_map(map_str):
                 start = (r, c)
             elif ch == "G":
                 goal = (r, c)
-    return width, height, walls, start, goal
+            elif ch.isdigit() and ch != "0":
+                costs[r][c] = float(ch)
+    return walls, start, goal, costs
 
 
-def _base_grid(width, height, walls):
+def _grid_from_arg(map, result=None):
+    """Accept either an ASCII map (str) or a matrix of terrain costs (a cell
+    ≤ 0 or non-finite is a wall). Returns ``(walls, start, goal, costs)``; for a
+    cost matrix the endpoints are taken from ``result.path``."""
+    if isinstance(map, str):
+        return _parse_map(map)
+    import math
+
+    rows = [list(row) for row in map]
+    height = len(rows)
+    width = max((len(r) for r in rows), default=0)
+    walls = set()
+    costs = [[1.0] * width for _ in range(height)]
+    for r in range(height):
+        for c in range(width):
+            x = float(rows[r][c]) if c < len(rows[r]) else 0.0
+            if not math.isfinite(x) or x <= 0.0:
+                walls.add((r, c))
+            else:
+                costs[r][c] = x
+    path = (result.path or []) if result is not None else []
+    start = tuple(path[0]) if path else None
+    goal = tuple(path[-1]) if path else None
+    return walls, start, goal, costs
+
+
+def _terrain_image(costs, walls):
+    """Build an HxWx3 RGB background: free cells shaded by terrain cost
+    (light → orange), walls slate. Uniform light when the grid is unweighted."""
     import numpy as np
+    from matplotlib import pyplot as plt
+    from matplotlib.colors import Normalize
 
-    grid = np.zeros((height, width), dtype=int)
+    arr = np.array(costs, dtype=float)
+    height, width = arr.shape
+    max_cost = float(arr.max()) if arr.size else 1.0
+    img = np.empty((height, width, 3))
+    if max_cost <= 1.0 + 1e-9:
+        img[:] = _FREE_RGB
+    else:
+        cmap = plt.get_cmap("YlOrBr")
+        norm = Normalize(vmin=1.0, vmax=max_cost)
+        for r in range(height):
+            for c in range(width):
+                img[r, c] = cmap(0.10 + 0.65 * norm(arr[r, c]))[:3]
     for (r, c) in walls:
-        grid[r, c] = _WALL
-    return grid
+        img[r, c] = _WALL_RGB
+    return img
 
 
-def _grid_image(ax, grid):
-    from matplotlib.colors import BoundaryNorm, ListedColormap
+def _blend(base, overlay, alpha):
+    return tuple(alpha * o + (1.0 - alpha) * b for o, b in zip(overlay, base))
 
-    cmap = ListedColormap(_GRID_COLORS)
-    norm = BoundaryNorm(range(len(_GRID_COLORS) + 1), cmap.N)
-    im = ax.imshow(grid, cmap=cmap, norm=norm, interpolation="nearest")
+
+def _no_ticks(ax):
     ax.set_xticks([])
     ax.set_yticks([])
-    return im
-
-
-def _mark_endpoints(grid, start, goal):
-    if start is not None:
-        grid[start] = _START
-    if goal is not None:
-        grid[goal] = _GOAL
 
 
 def plot_grid(map, result, ax=None):
-    """Static snapshot: walls, every expanded cell shaded, the path on top.
+    """Static snapshot: terrain shading, expanded cells, and the path on top.
 
     Args:
-        map (str): the ASCII map searched.
+        map (str | list[list[float]]): the ASCII map, or the terrain-cost matrix
+            passed to ``search_grid_costs``.
         result (SearchResult): from a search run with ``record=True``.
         ax: optional matplotlib Axes.
 
@@ -77,20 +124,55 @@ def plot_grid(map, result, ax=None):
     """
     import matplotlib.pyplot as plt
 
-    width, height, walls, start, goal = _parse_map(map)
-    grid = _base_grid(width, height, walls)
+    walls, start, goal, costs = _grid_from_arg(map, result)
+    img = _terrain_image(costs, walls)
+    # Blend visited cells over the terrain so the costs stay visible underneath.
     for node, _g, _fs in result.trace:
-        grid[tuple(node)] = _VISITED
+        rc = tuple(node)
+        if rc != start and rc != goal:
+            img[rc] = _blend(img[rc], _VISITED_RGB, 0.55)
     for node in result.path or []:
-        grid[tuple(node)] = _PATH
-    _mark_endpoints(grid, start, goal)
+        rc = tuple(node)
+        if rc != start and rc != goal:
+            img[rc] = _PATH_RGB
+    if start is not None:
+        img[start] = _START_RGB
+    if goal is not None:
+        img[goal] = _GOAL_RGB
 
     if ax is None:
         _, ax = plt.subplots()
-    _grid_image(ax, grid)
+    ax.imshow(img, interpolation="nearest")
+    _no_ticks(ax)
     cost = result.cost if result.found else float("inf")
     ax.set_title(f"expanded={result.nodes_expanded}  cost={cost}")
-    logger.info("plot_grid: %dx%d, %d expanded", width, height, result.nodes_expanded)
+    logger.info("plot_grid: %d expanded", result.nodes_expanded)
+    return ax
+
+
+def plot_costs(map, ax=None):
+    """Heatmap of the terrain costs (walls left blank), with a colourbar.
+
+    Args:
+        map (str | list[list[float]]): ASCII map (digits = costs) or cost matrix.
+        ax: optional matplotlib Axes.
+
+    Returns:
+        The matplotlib Axes.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    walls, _start, _goal, costs = _grid_from_arg(map)
+    arr = np.array(costs, dtype=float)
+    for (r, c) in walls:
+        arr[r, c] = np.nan
+    if ax is None:
+        _, ax = plt.subplots()
+    im = ax.imshow(arr, cmap="YlOrBr", interpolation="nearest")
+    ax.figure.colorbar(im, ax=ax, label="terrain cost")
+    _no_ticks(ax)
+    ax.set_title("Terrain costs (walls blank)")
     return ax
 
 
@@ -114,16 +196,24 @@ def animate_grid(map, result, interval=60, show_path=True):
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation
 
-    width, height, walls, start, goal = _parse_map(map)
+    walls, start, goal, costs = _grid_from_arg(map, result)
     expanded = [tuple(node) for node, _g, _fs in result.trace]
     if not expanded:
         raise ValueError("empty trace; run the search with record=True")
     path = [tuple(n) for n in (result.path or [])] if show_path else []
 
-    grid = _base_grid(width, height, walls)
-    _mark_endpoints(grid, start, goal)
+    img = _terrain_image(costs, walls)
+
+    def mark_endpoints():
+        if start is not None:
+            img[start] = _START_RGB
+        if goal is not None:
+            img[goal] = _GOAL_RGB
+
+    mark_endpoints()
     fig, ax = plt.subplots()
-    im = _grid_image(ax, grid)
+    im = ax.imshow(img, interpolation="nearest")
+    _no_ticks(ax)
     n_expand, n_path = len(expanded), len(path)
     total = n_expand + n_path
     logger.info("animate_grid: %d frames (%d expand + %d path)", total, n_expand, n_path)
@@ -132,16 +222,16 @@ def animate_grid(map, result, interval=60, show_path=True):
         if frame < n_expand:
             cell = expanded[frame]
             if cell not in (start, goal):
-                grid[cell] = _VISITED
+                img[cell] = _blend(img[cell], _VISITED_RGB, 0.55)
             ax.set_title(f"exploring… {frame + 1}/{n_expand}")
         else:
             cell = path[frame - n_expand]
             if cell not in (start, goal):
-                grid[cell] = _PATH
+                img[cell] = _PATH_RGB
             cost = result.cost if result.found else float("inf")
             ax.set_title(f"path found — cost={cost}")
-        _mark_endpoints(grid, start, goal)
-        im.set_data(grid)
+        mark_endpoints()
+        im.set_data(img)
         return (im,)
 
     return FuncAnimation(fig, update, frames=total, interval=interval, blit=False)
@@ -245,14 +335,14 @@ def plot_graph(num_nodes, edges, result, ax=None, node_size=80):
 
     def colour(n):
         if n == start:
-            return _GRID_COLORS[_START]
+            return _START_RGB
         if n == goal:
-            return _GRID_COLORS[_GOAL]
+            return _GOAL_RGB
         if n in on_path:
-            return _GRID_COLORS[_PATH]
+            return _PATH_RGB
         if n in visited:
-            return _GRID_COLORS[_VISITED]
-        return "#cfd8dc"
+            return _VISITED_RGB
+        return (0.812, 0.847, 0.863)  # untouched grey
 
     xs = [pos[n][0] for n in range(num_nodes)]
     ys = [pos[n][1] for n in range(num_nodes)]

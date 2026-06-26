@@ -381,7 +381,42 @@ fn resolve_heuristic(
     }
 }
 
-/// Search a 2-D maze given as an ASCII map (`#` wall, `S` start, `G` goal).
+/// Resolve the grid `heuristic` (name or callable) and run `algorithm`. Built-in
+/// heuristics run with the GIL released; a custom callable keeps it.
+#[allow(clippy::too_many_arguments)]
+fn run_on_grid(
+    py: Python<'_>,
+    grid: GridGraph,
+    start: Cell,
+    goal: Cell,
+    algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
+    record: bool,
+    opts: &RunOpts,
+) -> PyResult<PySearchResult> {
+    let r = match resolve_heuristic(heuristic, "manhattan")? {
+        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
+            match name.as_str() {
+                "zero" => run_algo(&grid, start, goal, algorithm, Zero, record, opts),
+                "manhattan" => run_algo(&grid, start, goal, algorithm, Manhattan, record, opts),
+                "euclidean" => run_algo(&grid, start, goal, algorithm, Euclidean, record, opts),
+                "octile" => run_algo(&grid, start, goal, algorithm, Octile, record, opts),
+                other => Err(value_err(format!(
+                    "unknown heuristic: '{other}'. Available: zero, manhattan, euclidean, \
+                     octile, or a callable h(node, goal) -> float"
+                ))),
+            }
+        })?,
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<Cell> = PyHeuristic::new(Some(func));
+            run_algo(&grid, start, goal, algorithm, h, record, opts)?
+        }
+    };
+    to_py_result(py, r)
+}
+
+/// Search a 2-D maze given as an ASCII map (`#` wall, `S` start, `G` goal, a
+/// digit `1`–`9` = a free cell with that terrain cost).
 ///
 /// `heuristic` is a built-in name (`"zero"`, `"manhattan"`, `"euclidean"`,
 /// `"octile"`) or a custom callable `h((row, col), (row, col)) -> float`.
@@ -418,27 +453,54 @@ fn search_grid(
         depth_limit,
         max_nodes,
     };
-    let r = match resolve_heuristic(heuristic, "manhattan")? {
-        // Built-in heuristics are pure Rust: run with the GIL released.
-        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
-            match name.as_str() {
-                "zero" => run_algo(&grid, start, goal, algorithm, Zero, record, &opts),
-                "manhattan" => run_algo(&grid, start, goal, algorithm, Manhattan, record, &opts),
-                "euclidean" => run_algo(&grid, start, goal, algorithm, Euclidean, record, &opts),
-                "octile" => run_algo(&grid, start, goal, algorithm, Octile, record, &opts),
-                other => Err(value_err(format!(
-                    "unknown heuristic: '{other}'. Available: zero, manhattan, euclidean, \
-                     octile, or a callable h(node, goal) -> float"
-                ))),
-            }
-        })?,
-        // A custom callable calls back into Python, so we keep the GIL.
-        HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<Cell> = PyHeuristic::new(Some(func));
-            run_algo(&grid, start, goal, algorithm, h, record, &opts)?
-        }
+    run_on_grid(py, grid, start, goal, algorithm, heuristic, record, &opts)
+}
+
+/// Search a grid built from a matrix of **terrain costs**. `costs[r][c]` is the
+/// movement cost of entering cell `(r, c)`; a non-positive or non-finite value
+/// marks a wall. `start` and `goal` are `(row, col)` tuples. Same `heuristic`
+/// options as [`search_grid`].
+#[pyfunction]
+#[pyo3(signature = (
+    costs, start, goal, algorithm="astar", heuristic=None, record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None, diagonal=false
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_grid_costs(
+    py: Python<'_>,
+    costs: Vec<Vec<f64>>,
+    start: (i32, i32),
+    goal: (i32, i32),
+    algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+    diagonal: bool,
+) -> PyResult<PySearchResult> {
+    if costs.is_empty() {
+        return Err(value_err("costs must be a non-empty matrix"));
+    }
+    let mut grid = GridGraph::from_costs(&costs);
+    if diagonal {
+        grid = grid.with_diagonal(true);
+    }
+    let start = Cell::new(start.0, start.1);
+    let goal = Cell::new(goal.0, goal.1);
+    if grid.is_blocked(start) || grid.is_blocked(goal) {
+        return Err(value_err(
+            "start and goal must be in-bounds, non-wall cells",
+        ));
+    }
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
     };
-    to_py_result(py, r)
+    run_on_grid(py, grid, start, goal, algorithm, heuristic, record, &opts)
 }
 
 /// Search an explicit weighted graph given as an edge list over `0..num_nodes`.
@@ -607,6 +669,7 @@ fn random_maze_ascii(width: i32, height: i32, obstacle_density: f64, seed: u64) 
 #[pymodule]
 fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_grid, m)?)?;
+    m.add_function(wrap_pyfunction!(search_grid_costs, m)?)?;
     m.add_function(wrap_pyfunction!(search_graph, m)?)?;
     m.add_function(wrap_pyfunction!(search_implicit, m)?)?;
     m.add_function(wrap_pyfunction!(gen_erdos_renyi, m)?)?;

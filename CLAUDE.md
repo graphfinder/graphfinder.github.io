@@ -25,9 +25,10 @@ algorithm. Everything that distinguishes the algorithms lives behind three
 traits in `crates/graphfinder-core/src/traits.rs`:
 
 - `Graph` — the domain. `neighbors(node) -> Vec<(node, cost)>`. Implementations:
-  `GridGraph` (2-D maze world, geometric, node = `Cell`), `CsrGraph` (explicit
-  weighted graph, node = `usize`). Implicit state-space graphs (puzzles) come
-  in a later phase but fit the same trait.
+  `GridGraph` (2-D maze world, geometric, node = `Cell`, with **per-cell terrain
+  cost** — entering a cell costs its terrain), `CsrGraph` (explicit weighted
+  graph, node = `usize`). Implicit state-space graphs (puzzles) come in a later
+  phase but fit the same trait.
 - `Frontier` — the open list. **The single choice that names the algorithm:**
   `Fifo` → BFS, `Lifo` → DFS, `PriorityQueue` → UCS/Greedy/A*. Template:
   `frontier/mod.rs`.

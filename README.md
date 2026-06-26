@@ -103,9 +103,10 @@ Weighted A*        20       yes        25         5
 - **Informed:** Greedy best-first, A\*, Weighted A\*, IDA\*, beam search.
 - **Run control:** optional node-expansion budget (`search_with`) with an
   explicit `stop_reason`.
-- **Domains:** `GridGraph` (2-D maze worlds, ASCII maps, 4/8-connected),
-  `CsrGraph` (explicit weighted graphs in cache-friendly CSR layout), and seeded
-  random-graph generators (Erdős–Rényi, Barabási–Albert, Watts–Strogatz).
+- **Domains:** `GridGraph` (2-D maze worlds, ASCII maps, 4/8-connected, **per-cell
+  terrain cost**), `CsrGraph` (explicit weighted graphs in cache-friendly CSR
+  layout), and seeded random-graph generators (Erdős–Rényi, Barabási–Albert,
+  Watts–Strogatz).
 - **Heuristics:** Zero (uninformed), Manhattan, Euclidean, Octile, **or your own
   callable** `h(node, goal) -> float` (works in any domain).
 - **Instrumentation for visualization & comparison:** every run reports the
@@ -113,9 +114,9 @@ Weighted A*        20       yes        25         5
   `stop_reason`, and a per-step `trace` (the expansion order — replay it to
   animate the search).
 - **Visualization** (`graphfinder.viz`, Python): `animate_grid` (the maze-search
-  animation above), `plot_grid` (static snapshot), `plot_frontier` (memory
-  profile), `compare` (work-vs-quality bar charts), `plot_graph` (general graph
-  coloured by search state).
+  animation above), `plot_grid` (static snapshot, terrain-shaded), `plot_costs`
+  (terrain heatmap), `plot_frontier` (memory profile), `compare` (work-vs-quality
+  bar charts), `plot_graph` (general graph coloured by search state).
 - **Reproducibility:** seeded random maze generator; deterministic tie-breaking.
 
 ## How is this different from networkx / rustworkx?

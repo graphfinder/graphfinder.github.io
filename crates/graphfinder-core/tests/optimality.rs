@@ -86,6 +86,39 @@ fn trace_is_recorded_and_consistent() {
     assert_eq!(r.trace.last().unwrap().expanded, m.goal);
 }
 
+/// On a weighted grid the least-cost path differs from the fewest-steps path:
+/// BFS finds the short-but-expensive route, UCS/A* find the long-but-cheap one.
+#[test]
+fn weighted_grid_separates_bfs_from_ucs() {
+    // Top row is expensive terrain (cost 9); the bottom row is a cheap detour.
+    let (grid, start, goal) = graphfinder_core::GridGraph::from_ascii("S99G\n1111");
+
+    let bfs = search(&grid, start, goal, Algorithm::bfs(), &Zero, false);
+    let ucs = search(&grid, start, goal, Algorithm::ucs(), &Zero, false);
+    let astar = search(&grid, start, goal, Algorithm::astar(), &Manhattan, false);
+
+    // BFS: fewest steps (the 3-step top row) but expensive.
+    assert_eq!(bfs.path_len(), Some(4)); // 4 nodes = 3 steps
+    assert_eq!(bfs.cost, 19.0); // 9 + 9 + 1
+
+    // UCS/A*: least cost via the longer detour.
+    assert_eq!(ucs.cost, 5.0);
+    assert_eq!(astar.cost, 5.0);
+    assert_eq!(ucs.path_len(), Some(6)); // 6 nodes = 5 steps
+    assert!(ucs.path_len() > bfs.path_len()); // cheaper path is longer in steps
+    assert!(ucs.cost < bfs.cost);
+}
+
+/// `from_costs` turns non-positive / non-finite cells into walls.
+#[test]
+fn from_costs_marks_walls() {
+    use graphfinder_core::{Cell, GridGraph};
+    let grid = GridGraph::from_costs(&[vec![1.0, 5.0], vec![0.0, 1.0]]);
+    assert_eq!(grid.cost_at(Cell::new(0, 1)), 5.0);
+    assert!(grid.is_blocked(Cell::new(1, 0))); // cost 0.0 ⇒ wall
+    assert!(grid.is_weighted());
+}
+
 /// Same seed ⇒ identical maze ⇒ identical result (reproducibility).
 #[test]
 fn random_maze_is_reproducible() {

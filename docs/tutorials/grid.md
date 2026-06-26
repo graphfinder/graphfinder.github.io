@@ -55,7 +55,24 @@ Allow 8-connectivity and use the matching `octile` heuristic:
 r = gf.search(maze, algorithm="astar", heuristic="octile", diagonal=True)
 ```
 
-## 5. Animate it
+## 5. Weighted terrain
+
+Give cells a cost (digit `1`–`9`, or a matrix) and the *cheapest* path stops
+being the *shortest* one — Dijkstra/A\* now beat BFS:
+
+```python
+terrain = "S99G\n1111"            # top row expensive (9), bottom a cheap detour
+gf.search(terrain, algorithm="bfs").cost   # 19.0  (fewest steps)
+gf.search(terrain, algorithm="ucs").cost   # 5.0   (least cost)
+
+# arbitrary costs / walls via a matrix (0 ⇒ wall):
+costs = [[1, 1, 1], [9, 0, 1], [1, 1, 1]]
+r = gf.search_grid_costs(costs, start=(0, 0), goal=(2, 0), algorithm="astar", record=True)
+gf.viz.plot_costs(costs)          # terrain heatmap
+gf.viz.plot_grid(costs, r)        # the search over the terrain
+```
+
+## 6. Animate it
 
 ```python
 import matplotlib.pyplot as plt
@@ -71,7 +88,7 @@ plt.show()
   <img src="/assets/astar.gif" alt="A* on a maze" width="340">
 </p>
 
-## 6. Budget the search
+## 7. Budget the search
 
 Cap the expansions (useful for huge maps or live demos); the result reports why
 it stopped:

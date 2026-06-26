@@ -18,6 +18,10 @@ Example:
     ...     return [(s + 1, 1.0), (s * 2, 1.0)] if s < 50 else []
     >>> r = gf.search(succ, start=1, goal=27, algorithm="bfs")
 
+    >>> # weighted terrain: digits 1-9 are costs, or a full matrix
+    >>> gf.search("S99G\n1111", algorithm="ucs").cost   # 5.0
+    >>> gf.search_grid_costs([[1, 1], [9, 1]], (0, 0), (1, 1))
+
 Algorithms (`algorithm=`): "bfs", "dfs", "ucs"/"dijkstra", "greedy", "astar",
 "weighted_astar", "iddfs", "dls", "ida_star", "beam", "bidirectional".
 Heuristics (`heuristic=`): a built-in grid name ("zero", "manhattan",
@@ -36,6 +40,7 @@ from .graphfinder_native import (
     sample_maze,
     search_graph,
     search_grid,
+    search_grid_costs,
     search_implicit,
 )
 from . import viz
@@ -43,7 +48,7 @@ from . import viz
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 
 def search(domain, start=None, goal=None, **kwargs):
@@ -71,6 +76,7 @@ def search(domain, start=None, goal=None, **kwargs):
 __all__ = [
     "search",
     "search_grid",
+    "search_grid_costs",
     "search_graph",
     "search_implicit",
     "gen_erdos_renyi",

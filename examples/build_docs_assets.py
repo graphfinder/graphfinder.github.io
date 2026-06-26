@@ -116,6 +116,21 @@ gf.viz.plot_graph(90, edges, gres, ax=ax)
 ax.set_title(f"Scale-free graph (Barabási–Albert) · BFS 0→89 · cost={gres.cost}")
 save(fig, "graph.png")
 
+# 8) Weighted terrain: A* routes around an expensive plateau (dark = costly).
+H = W = 24
+terrain = [[1.0] * W for _ in range(H)]
+for r in range(4, 20):
+    for c in range(9, 15):
+        terrain[r][c] = 9.0  # expensive plateau in the middle
+astar_w = gf.search_grid_costs(terrain, (0, 0), (H - 1, W - 1), algorithm="astar", record=True)
+fig, (a0, a1) = plt.subplots(1, 2, figsize=(10, 5))
+gf.viz.plot_costs(terrain, ax=a0)
+gf.viz.plot_grid(terrain, astar_w, ax=a1)
+a1.set_title(f"A* skirts the costly region\ncost={astar_w.cost:.1f}", fontsize=10)
+fig.suptitle("Weighted terrain — moving into a cell costs its terrain", fontsize=13)
+fig.tight_layout()
+save(fig, "weighted.png")
+
 # Keep the top-level hero in sync (used by the GitHub README).
 import shutil
 

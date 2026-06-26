@@ -27,6 +27,13 @@ handy for A/B comparisons. On an 8-connected grid (`diagonal=True`), use
 `octile`: it is the exact diagonal distance and stays admissible, whereas
 `manhattan` would overestimate and lose A\*'s optimality guarantee.
 
+!!! warning "Weighted terrain"
+    On a [weighted grid](domains.md#weighted-terrain) the geometric heuristics
+    count *steps*, so they stay admissible only when **every terrain cost ≥ 1**
+    (the usual case). If costs can be below 1, a step-counting heuristic may
+    overestimate — use `zero` (→ Dijkstra) or scale the heuristic by the minimum
+    terrain cost to keep A\* optimal.
+
 ## Stronger heuristic, less work
 
 The closer (but still admissible) the estimate, the more the search focuses on

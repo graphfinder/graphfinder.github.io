@@ -9,6 +9,7 @@ Reference generated from the docstrings of the `graphfinder` package.
       members:
         - search
         - search_grid
+        - search_grid_costs
         - search_graph
         - search_implicit
         - SearchResult
@@ -32,6 +33,7 @@ Reference generated from the docstrings of the `graphfinder` package.
       members:
         - animate_grid
         - plot_grid
+        - plot_costs
         - plot_frontier
         - compare
         - plot_graph
