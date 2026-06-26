@@ -91,7 +91,12 @@ pedagogy, step-by-step visualization and algorithm comparison**, with a fast
 Rust core and GIL-free implicit state-space search (puzzles, large grids) as
 supporting features rather than the headline.
 
+## Author
+
+graphfinder is created and maintained by **[Jose L. Salmeron](https://salmeron.cunef.edu)**
+([ORCID](https://orcid.org/0000-0001-7811-3716)), CUNEF Universidad.
+
 ## Citing
 
-If you use graphfinder in academic work, see the `CITATION.cff` in the
-repository. Licensed under MIT.
+If you use graphfinder in academic work, please cite it — see the `CITATION.cff`
+in the repository. Licensed under MIT © Jose L. Salmeron.

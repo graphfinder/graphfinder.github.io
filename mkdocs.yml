@@ -1,8 +1,10 @@
 site_name: graphfinder
 site_description: Graph traversal & pathfinding (informed and uninformed search) with a Rust core.
+site_author: Jose L. Salmeron
 site_url: https://graphfinder.github.io/
 repo_url: https://github.com/graphfinder/graphfinder.github.io
 repo_name: graphfinder/graphfinder.github.io
+copyright: Created by <a href="https://salmeron.cunef.edu">Jose L. Salmeron</a>
 docs_dir: docs
 site_dir: site
 
@@ -75,3 +77,15 @@ plugins:
             members_order: source
             separate_signature: true
             show_signature_annotations: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/graphfinder
+      name: graphfinder on GitHub
+    - icon: fontawesome/brands/orcid
+      link: https://orcid.org/0000-0001-7811-3716
+      name: Jose L. Salmeron — ORCID
+    - icon: material/web
+      link: https://salmeron.cunef.edu
+      name: Jose L. Salmeron — website
