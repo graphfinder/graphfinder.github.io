@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] — 2026-06-26
+
+### Added
+- **Ecosystem integrations** under `graphfinder.integrations` (lazy imports,
+  optional extras), each returning a `LabeledResult` that maps the path back to
+  your node labels and keeps the native result in `.raw`:
+  - **NetworkX** (`[networkx]`): `search` over `nx.Graph`/`DiGraph` — a drop-in
+    alternative to `nx.shortest_path`/`astar_path` with search instrumentation.
+  - **SciPy** (`[scipy]`): `search` over a `scipy.sparse` adjacency matrix,
+    matching `scipy.sparse.csgraph`'s `directed` convention.
+  - **pandas** (`[pandas]`): `search` from an edge-list `DataFrame`, plus
+    `trace_dataframe` and `compare_dataframe` result tables.
+- CI now installs the integration extras so their tests run (not skip).
+
 ## [0.3.0] — 2026-06-26
 
 ### Added
@@ -65,6 +79,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.4.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.4.0
 [0.3.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.3.0
 [0.2.1]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.1
 [0.2.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.2.0

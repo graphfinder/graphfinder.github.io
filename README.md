@@ -117,6 +117,9 @@ Weighted A*        20       yes        25         5
   animation above), `plot_grid` (static snapshot, terrain-shaded), `plot_costs`
   (terrain heatmap), `plot_frontier` (memory profile), `compare` (work-vs-quality
   bar charts), `plot_graph` (general graph coloured by search state).
+- **Integrations** (`graphfinder.integrations`): search over **NetworkX** graphs,
+  **SciPy** sparse adjacency matrices, and **pandas** edge-list DataFrames (plus
+  result/comparison tables). Optional extras: `pip install graphfinder[networkx]`.
 - **Reproducibility:** seeded random maze generator; deterministic tie-breaking.
 
 ## How is this different from networkx / rustworkx?

@@ -37,3 +37,30 @@ Reference generated from the docstrings of the `graphfinder` package.
         - plot_frontier
         - compare
         - plot_graph
+
+## Integrations
+
+See [Integrations](integrations.md) for usage. Each returns a `LabeledResult`.
+
+::: graphfinder.integrations
+    options:
+      members:
+        - LabeledResult
+
+::: graphfinder.integrations.networkx
+    options:
+      members:
+        - search
+        - to_edgelist
+
+::: graphfinder.integrations.scipy
+    options:
+      members:
+        - search
+
+::: graphfinder.integrations.pandas
+    options:
+      members:
+        - search
+        - trace_dataframe
+        - compare_dataframe

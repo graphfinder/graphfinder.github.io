@@ -47,6 +47,7 @@ nav:
       - Heuristics: heuristics.md
       - Domains: domains.md
       - Visualization: visualization.md
+  - Integrations: integrations.md
   - Design & internals: architecture.md
   - API reference: api.md
 

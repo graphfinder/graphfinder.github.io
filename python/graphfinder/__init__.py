@@ -43,12 +43,12 @@ from .graphfinder_native import (
     search_grid_costs,
     search_implicit,
 )
-from . import viz
+from . import integrations, viz
 
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 
 def search(domain, start=None, goal=None, **kwargs):
@@ -86,5 +86,6 @@ __all__ = [
     "random_maze_ascii",
     "SearchResult",
     "viz",
+    "integrations",
     "__version__",
 ]

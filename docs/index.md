@@ -66,6 +66,8 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
   frontier-size curves, work-vs-quality comparison, and general-graph plots.
 - **Instrumentation:** every run reports the path, cost, nodes expanded/
   generated, peak frontier, stop reason, and a per-step trace.
+- **[Integrations](integrations.md):** search over **NetworkX** graphs,
+  **SciPy** sparse adjacency, and **pandas** edge-list DataFrames.
 - **Reproducibility:** seeded generators and deterministic tie-breaking.
 
 ## Where to next
@@ -79,6 +81,7 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - 🧠 **Concepts** — [algorithms](algorithms.md) · [heuristics](heuristics.md) ·
   [domains](domains.md).
 - 🎬 **[Visualization gallery](visualization.md)**.
+- 🔌 **[Integrations](integrations.md)** — NetworkX · SciPy · pandas.
 - 🛠️ **[Design & internals](architecture.md)** and the
   **[API reference](api.md)**.
 
