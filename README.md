@@ -106,7 +106,8 @@ Weighted A*        20       yes        25         5
 - **Domains:** `GridGraph` (2-D maze worlds, ASCII maps, 4/8-connected),
   `CsrGraph` (explicit weighted graphs in cache-friendly CSR layout), and seeded
   random-graph generators (Erdős–Rényi, Barabási–Albert, Watts–Strogatz).
-- **Heuristics:** Zero (uninformed), Manhattan, Euclidean, Octile.
+- **Heuristics:** Zero (uninformed), Manhattan, Euclidean, Octile, **or your own
+  callable** `h(node, goal) -> float` (works in any domain).
 - **Instrumentation for visualization & comparison:** every run reports the
   path, cost, `nodes_expanded`, `nodes_generated`, `max_frontier_size`,
   `stop_reason`, and a per-step `trace` (the expansion order — replay it to

@@ -60,6 +60,14 @@ heuristic:
 gf.search(maze, algorithm="astar", heuristic="octile", diagonal=True)
 ```
 
+`heuristic=` takes a built-in name *or* your own callable `h(node, goal) -> float`
+(for grids, nodes are `(row, col)` tuples) — see [Heuristics](heuristics.md):
+
+```python
+gf.search(maze, algorithm="astar",
+          heuristic=lambda n, g: abs(n[0] - g[0]) + abs(n[1] - g[1]))
+```
+
 ## 2. Explicit graphs
 
 Pass an edge list over nodes `0..n`. The generators return exactly this format.

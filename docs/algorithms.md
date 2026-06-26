@@ -61,7 +61,7 @@ bounded memory, no guarantees.
 
 | Parameter | Applies to | Meaning |
 |-----------|-----------|---------|
-| `heuristic` | grid algorithms | `"zero"`, `"manhattan"`, `"euclidean"`, `"octile"`, or a callable for implicit graphs |
+| `heuristic` | priority-based algorithms | a built-in name (`"zero"`, `"manhattan"`, `"euclidean"`, `"octile"`) **or** a custom callable `h(node, goal) -> float` (any domain) |
 | `weight`    | `weighted_astar` | the `w` multiplier on `h` (default 2.0) |
 | `beam_width`| `beam` | frontier cap per level |
 | `depth_limit` | `dls` (required), `iddfs` (cap) | maximum search depth |

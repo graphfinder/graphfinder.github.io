@@ -20,7 +20,9 @@ Example:
 
 Algorithms (`algorithm=`): "bfs", "dfs", "ucs"/"dijkstra", "greedy", "astar",
 "weighted_astar", "iddfs", "dls", "ida_star", "beam", "bidirectional".
-Grid heuristics (`heuristic=`): "zero", "manhattan", "euclidean", "octile".
+Heuristics (`heuristic=`): a built-in grid name ("zero", "manhattan",
+"euclidean", "octile") *or* a custom callable ``h(node, goal) -> float`` (works
+in any domain — grids, explicit graphs and implicit graphs).
 """
 
 import logging
@@ -41,7 +43,7 @@ from . import viz
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def search(domain, start=None, goal=None, **kwargs):

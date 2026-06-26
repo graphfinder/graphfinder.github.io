@@ -71,6 +71,36 @@ def test_implicit_graph_bfs_minimal_ops():
     assert r.path[0] == 1 and r.path[-1] == 27
 
 
+def test_grid_custom_heuristic_matches_named():
+    # A custom callable equal to Manhattan must reproduce the named result.
+    maze = gf.sample_maze("wall")
+    named = gf.search(maze, algorithm="astar", heuristic="manhattan")
+
+    def manhattan(node, goal):
+        return abs(node[0] - goal[0]) + abs(node[1] - goal[1])
+
+    custom = gf.search(maze, algorithm="astar", heuristic=manhattan)
+    assert custom.found
+    assert custom.cost == named.cost
+    assert custom.nodes_expanded == named.nodes_expanded
+
+
+def test_grid_invalid_heuristic_raises():
+    with pytest.raises(ValueError):
+        gf.search(gf.sample_maze("open"), algorithm="astar", heuristic=42)
+
+
+def test_graph_custom_heuristic_runs_astar():
+    # A* on an explicit graph with a (trivially admissible) custom heuristic.
+    edges = gf.gen_barabasi_albert(120, 3, seed=4)
+    bfs = gf.search_graph(120, edges, 0, 119, algorithm="bfs")
+    astar = gf.search_graph(
+        120, edges, 0, 119, algorithm="astar", heuristic=lambda n, goal: 0.0
+    )
+    assert astar.found
+    assert astar.cost == bfs.cost  # zero heuristic ⇒ optimal, same as BFS on unit costs
+
+
 def test_implicit_graph_astar_with_heuristic():
     def succ(s):
         return [(s + 1, 1.0), (s * 2, 1.0)] if s < 100 else []

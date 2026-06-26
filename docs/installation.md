@@ -32,7 +32,7 @@ python examples/quickstart.py
 ```toml
 # Cargo.toml
 [dependencies]
-graphfinder-core = "0.1"
+graphfinder-core = "0.2"
 ```
 
 ```bash

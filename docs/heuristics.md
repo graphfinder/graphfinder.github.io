@@ -5,8 +5,12 @@ what turns blind search into *informed* search: Greedy uses `h` alone, A\* uses
 `g + h`. A heuristic is **admissible** if it never overestimates the true
 remaining cost — admissibility is what makes A\* and IDA\* optimal.
 
+The `heuristic=` argument accepts either a **built-in name** (`str`) or a
+**custom Python callable** `h(node, goal) -> float` — in any domain:
+
 ```python
-gf.search(maze, algorithm="astar", heuristic="manhattan")
+gf.search(maze, algorithm="astar", heuristic="manhattan")              # built-in
+gf.search(maze, algorithm="astar", heuristic=lambda n, g: abs(n[0]-g[0]) + abs(n[1]-g[1]))
 ```
 
 ## Built-in grid heuristics
@@ -37,20 +41,58 @@ the goal and the fewer nodes it expands. Same maze, A\* with three heuristics:
 the search the most. All three return the **same optimal cost**; they differ only
 in *work*.
 
-## Custom heuristics (implicit graphs)
+## Custom heuristics
 
-For implicit graphs you pass a Python callable `h(state, goal) -> float`:
+Pass a callable `h(node, goal) -> float` instead of a name. The node and goal are
+handed to your function in the domain's natural form, so the signature differs
+per domain:
 
-```python
-def successors(s):
-    return [(s + 1, 1.0), (s * 2, 1.0)] if s < 100 else []
+=== "Grid"
 
-# admissible: at least one operation remains while below the goal
-def h(state, goal):
-    return 0.0 if state >= goal else 1.0
+    Nodes are `(row, col)` tuples. Here is a hand-written Chebyshev distance
+    (useful on 8-connected grids):
 
-gf.search(successors, start=1, goal=27, algorithm="astar", heuristic=h)
-```
+    ```python
+    def chebyshev(node, goal):
+        return float(max(abs(node[0] - goal[0]), abs(node[1] - goal[1])))
+
+    gf.search(maze, algorithm="astar", heuristic=chebyshev, diagonal=True)
+    ```
+
+=== "Explicit graph"
+
+    Nodes are integer ids. With coordinates per node you can use straight-line
+    distance to turn `search_graph` into a real A\*:
+
+    ```python
+    import math
+    xy = {i: (x_i, y_i) for i in range(n)}   # your node coordinates
+
+    def straight_line(u, v):
+        (ax, ay), (bx, by) = xy[u], xy[v]
+        return math.hypot(ax - bx, ay - by)
+
+    gf.search_graph(n, edges, 0, n - 1, algorithm="astar", heuristic=straight_line)
+    ```
+
+=== "Implicit graph"
+
+    States are ints or tuples of ints (whatever your successor function uses):
+
+    ```python
+    def successors(s):
+        return [(s + 1, 1.0), (s * 2, 1.0)] if s < 100 else []
+
+    # admissible: at least one operation remains while below the goal
+    def h(state, goal):
+        return 0.0 if state >= goal else 1.0
+
+    gf.search(successors, start=1, goal=27, algorithm="astar", heuristic=h)
+    ```
+
+A custom callable works with every priority-based algorithm (`greedy`, `astar`,
+`weighted_astar`, `ida_star`, `beam`). Built-in heuristics run in pure Rust with
+the GIL released; a Python callable reacquires the GIL once per node it scores.
 
 ### Designing one
 

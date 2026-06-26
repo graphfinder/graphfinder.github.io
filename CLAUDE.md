@@ -132,7 +132,11 @@ in `domains/` with known structure, and a test.
 
 ### Add a heuristic
 Implement `Heuristic<N>` in `heuristic.rs` for the relevant node type; add a
-test that it stays admissible on a known instance.
+test that it stays admissible on a known instance. From Python, users can also
+pass a **custom callable** `h(node, goal) -> float` to any domain — the binding
+wraps it in the generic `PyHeuristic<N>` adapter (`crates/graph-py`), so no Rust
+change is needed for ad-hoc heuristics. Built-in names run GIL-free; a callable
+reacquires the GIL per scored node.
 
 ## Status by phase
 

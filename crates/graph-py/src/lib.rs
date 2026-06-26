@@ -9,6 +9,13 @@
 //!
 //! Plus reproducible random-graph generators and maze helpers.
 
+// The `#[pyfunction]` macro (PyO3 0.22) emits a `.into()` on the returned
+// `PyErr`, which clippy 1.91 flags as a useless conversion. It is macro-generated
+// code we don't control, so silence it crate-wide.
+#![allow(clippy::useless_conversion)]
+
+use std::marker::PhantomData;
+
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyTuple};
@@ -303,25 +310,37 @@ impl Graph for PyImplicitGraph {
     }
 }
 
-struct PyHeuristic {
+/// A heuristic backed by a Python callable `h(node, goal) -> float`, generic
+/// over the node type. `None` behaves as the zero heuristic. Works for any node
+/// that can be handed to Python (grids → `(row, col)`, graphs → `int`, implicit
+/// → `int`/tuple), so the same adapter serves every domain.
+struct PyHeuristic<N> {
     func: Option<Py<PyAny>>,
+    _marker: PhantomData<N>,
 }
 
-impl Clone for PyHeuristic {
-    fn clone(&self) -> Self {
-        // `Py<PyAny>` clones by bumping the refcount, which needs the GIL.
-        Python::with_gil(|py| PyHeuristic {
-            func: self.func.as_ref().map(|f| f.clone_ref(py)),
-        })
+impl<N> PyHeuristic<N> {
+    fn new(func: Option<Py<PyAny>>) -> Self {
+        Self {
+            func,
+            _marker: PhantomData,
+        }
     }
 }
 
-impl Heuristic<Vec<i64>> for PyHeuristic {
-    fn estimate(&self, node: &Vec<i64>, goal: &Vec<i64>) -> f64 {
+impl<N> Clone for PyHeuristic<N> {
+    fn clone(&self) -> Self {
+        // `Py<PyAny>` clones by bumping the refcount, which needs the GIL.
+        Python::with_gil(|py| PyHeuristic::new(self.func.as_ref().map(|f| f.clone_ref(py))))
+    }
+}
+
+impl<N: IntoPyNode + Clone> Heuristic<N> for PyHeuristic<N> {
+    fn estimate(&self, node: &N, goal: &N) -> f64 {
         match &self.func {
             None => 0.0,
             Some(f) => Python::with_gil(|py| {
-                let args = (state_to_py(py, node), state_to_py(py, goal));
+                let args = (node.clone().into_py_node(py), goal.clone().into_py_node(py));
                 f.call1(py, args)
                     .and_then(|v| v.extract::<f64>(py))
                     .expect("the heuristic callable must return a float")
@@ -334,10 +353,41 @@ impl Heuristic<Vec<i64>> for PyHeuristic {
 // Public Python functions
 // ---------------------------------------------------------------------------
 
+/// Resolve a `heuristic` argument that may be a built-in name (`str`) or a
+/// custom Python callable `h(node, goal) -> float`. `None` falls back to
+/// `default_name`.
+enum HeuristicArg {
+    Named(String),
+    Custom(Py<PyAny>),
+}
+
+fn resolve_heuristic(
+    heuristic: Option<Bound<'_, PyAny>>,
+    default_name: &str,
+) -> PyResult<HeuristicArg> {
+    match heuristic {
+        None => Ok(HeuristicArg::Named(default_name.to_string())),
+        Some(obj) => {
+            if let Ok(name) = obj.extract::<String>() {
+                Ok(HeuristicArg::Named(name))
+            } else if obj.is_callable() {
+                Ok(HeuristicArg::Custom(obj.unbind()))
+            } else {
+                Err(value_err(
+                    "heuristic must be a name (str) or a callable h(node, goal) -> float",
+                ))
+            }
+        }
+    }
+}
+
 /// Search a 2-D maze given as an ASCII map (`#` wall, `S` start, `G` goal).
+///
+/// `heuristic` is a built-in name (`"zero"`, `"manhattan"`, `"euclidean"`,
+/// `"octile"`) or a custom callable `h((row, col), (row, col)) -> float`.
 #[pyfunction]
 #[pyo3(signature = (
-    map, algorithm="astar", heuristic="manhattan", record=true,
+    map, algorithm="astar", heuristic=None, record=true,
     weight=2.0, beam_width=None, depth_limit=None, max_nodes=None, diagonal=false
 ))]
 #[allow(clippy::too_many_arguments)]
@@ -345,7 +395,7 @@ fn search_grid(
     py: Python<'_>,
     map: &str,
     algorithm: &str,
-    heuristic: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
     record: bool,
     weight: f64,
     beam_width: Option<usize>,
@@ -368,27 +418,40 @@ fn search_grid(
         depth_limit,
         max_nodes,
     };
-    let r = py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
-        match heuristic {
-            "zero" => run_algo(&grid, start, goal, algorithm, Zero, record, &opts),
-            "manhattan" => run_algo(&grid, start, goal, algorithm, Manhattan, record, &opts),
-            "euclidean" => run_algo(&grid, start, goal, algorithm, Euclidean, record, &opts),
-            "octile" => run_algo(&grid, start, goal, algorithm, Octile, record, &opts),
-            other => Err(value_err(format!(
-                "unknown heuristic: '{other}'. Available: zero, manhattan, euclidean, octile"
-            ))),
+    let r = match resolve_heuristic(heuristic, "manhattan")? {
+        // Built-in heuristics are pure Rust: run with the GIL released.
+        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
+            match name.as_str() {
+                "zero" => run_algo(&grid, start, goal, algorithm, Zero, record, &opts),
+                "manhattan" => run_algo(&grid, start, goal, algorithm, Manhattan, record, &opts),
+                "euclidean" => run_algo(&grid, start, goal, algorithm, Euclidean, record, &opts),
+                "octile" => run_algo(&grid, start, goal, algorithm, Octile, record, &opts),
+                other => Err(value_err(format!(
+                    "unknown heuristic: '{other}'. Available: zero, manhattan, euclidean, \
+                     octile, or a callable h(node, goal) -> float"
+                ))),
+            }
+        })?,
+        // A custom callable calls back into Python, so we keep the GIL.
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<Cell> = PyHeuristic::new(Some(func));
+            run_algo(&grid, start, goal, algorithm, h, record, &opts)?
         }
-    })?;
+    };
     to_py_result(py, r)
 }
 
 /// Search an explicit weighted graph given as an edge list over `0..num_nodes`.
-/// Heuristics need geometry, so graphs use the zero heuristic (informed names
-/// degenerate to their uninformed behaviour).
+///
+/// `heuristic` defaults to the zero heuristic (so the informed algorithms behave
+/// as their uninformed counterparts). Pass a custom callable
+/// `h(node, goal) -> float` (nodes are ints) to run a real A\* / Greedy — e.g.
+/// straight-line distance when your nodes have coordinates. `weight` sets the
+/// `w` for `weighted_astar`.
 #[pyfunction]
 #[pyo3(signature = (
-    num_nodes, edges, start, goal, algorithm="bfs", undirected=true,
-    record=true, beam_width=None, depth_limit=None, max_nodes=None
+    num_nodes, edges, start, goal, algorithm="bfs", heuristic=None, undirected=true,
+    record=true, weight=2.0, beam_width=None, depth_limit=None, max_nodes=None
 ))]
 #[allow(clippy::too_many_arguments)]
 fn search_graph(
@@ -398,8 +461,10 @@ fn search_graph(
     start: usize,
     goal: usize,
     algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
     undirected: bool,
     record: bool,
+    weight: f64,
     beam_width: Option<usize>,
     depth_limit: Option<usize>,
     max_nodes: Option<usize>,
@@ -409,12 +474,29 @@ fn search_graph(
     }
     let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
     let opts = RunOpts {
-        weight: 1.0,
+        weight,
         beam_width: beam_width.unwrap_or(usize::MAX),
         depth_limit,
         max_nodes,
     };
-    let r = py.allow_threads(|| run_algo(&graph, start, goal, algorithm, Zero, record, &opts))?;
+    let r = match resolve_heuristic(heuristic, "zero")? {
+        HeuristicArg::Named(name) => match name.as_str() {
+            // Graph nodes are ids with no geometry, so the only built-in is zero.
+            "zero" => {
+                py.allow_threads(|| run_algo(&graph, start, goal, algorithm, Zero, record, &opts))?
+            }
+            other => {
+                return Err(value_err(format!(
+                    "unknown graph heuristic: '{other}'. Use 'zero' or a callable \
+                     h(node, goal) -> float"
+                )))
+            }
+        },
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<usize> = PyHeuristic::new(Some(func));
+            run_algo(&graph, start, goal, algorithm, h, record, &opts)?
+        }
+    };
     to_py_result(py, r)
 }
 
@@ -443,7 +525,7 @@ fn search_implicit(
     let start_v = py_to_state(&start)?;
     let goal_v = py_to_state(&goal)?;
     let graph = PyImplicitGraph { successors };
-    let h = PyHeuristic { func: heuristic };
+    let h: PyHeuristic<Vec<i64>> = PyHeuristic::new(heuristic);
     let opts = RunOpts {
         weight,
         beam_width: beam_width.unwrap_or(usize::MAX),
