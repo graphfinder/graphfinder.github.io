@@ -37,7 +37,7 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist
           manylinux: auto
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-linux-${{ matrix.target }}
           path: dist
@@ -57,7 +57,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --out dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-macos-${{ matrix.target }}
           path: dist
@@ -73,7 +73,7 @@ jobs:
         with:
           target: x64
           args: --release --out dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-windows
           path: dist
@@ -86,7 +86,7 @@ jobs:
         with:
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: wheels-sdist
           path: dist
@@ -97,7 +97,7 @@ jobs:
     permissions:
       id-token: write # OIDC token for PyPI Trusted Publishing (no API token)
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           pattern: wheels-*
           path: dist
