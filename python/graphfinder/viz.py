@@ -14,6 +14,8 @@ the terrain-cost matrix passed to ``search_grid_costs``.
 matplotlib is imported lazily inside each function, so importing this module is
 cheap and never required for the core search API.
 """
+from __future__ import annotations  # keep the matplotlib type hints lazy
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -110,17 +112,17 @@ def _no_ticks(ax):
     ax.set_yticks([])
 
 
-def plot_grid(map, result, ax=None):
+def plot_grid(map, result, ax: matplotlib.axes.Axes | None = None) -> matplotlib.axes.Axes:
     """Static snapshot: terrain shading, expanded cells, and the path on top.
 
     Args:
         map (str | list[list[float]]): the ASCII map, or the terrain-cost matrix
             passed to ``search_grid_costs``.
         result (SearchResult): from a search run with ``record=True``.
-        ax: optional matplotlib Axes.
+        ax (matplotlib.axes.Axes, optional): axes to draw on; created if omitted.
 
     Returns:
-        The matplotlib Axes.
+        matplotlib.axes.Axes: the axes the grid was drawn on.
     """
     import matplotlib.pyplot as plt
 
@@ -150,15 +152,15 @@ def plot_grid(map, result, ax=None):
     return ax
 
 
-def plot_costs(map, ax=None):
+def plot_costs(map, ax: matplotlib.axes.Axes | None = None) -> matplotlib.axes.Axes:
     """Heatmap of the terrain costs (walls left blank), with a colourbar.
 
     Args:
         map (str | list[list[float]]): ASCII map (digits = costs) or cost matrix.
-        ax: optional matplotlib Axes.
+        ax (matplotlib.axes.Axes, optional): axes to draw on; created if omitted.
 
     Returns:
-        The matplotlib Axes.
+        matplotlib.axes.Axes: the axes the heatmap was drawn on.
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -176,7 +178,9 @@ def plot_costs(map, ax=None):
     return ax
 
 
-def animate_grid(map, result, interval=60, show_path=True):
+def animate_grid(
+    map, result, interval=60, show_path=True
+) -> matplotlib.animation.FuncAnimation:
     """Animate the search exploring the maze, then trace the final path.
 
     Each frame marks the next expanded cell; once the frontier has been replayed,
@@ -190,8 +194,8 @@ def animate_grid(map, result, interval=60, show_path=True):
         show_path (bool): append the path-drawing frames at the end.
 
     Returns:
-        A ``matplotlib.animation.FuncAnimation`` (in a notebook, display with
-        ``HTML(anim.to_jshtml())``).
+        matplotlib.animation.FuncAnimation: the animation (in a notebook,
+        display it with ``HTML(anim.to_jshtml())``).
     """
     import matplotlib.pyplot as plt
     from matplotlib.animation import FuncAnimation
@@ -237,7 +241,9 @@ def animate_grid(map, result, interval=60, show_path=True):
     return FuncAnimation(fig, update, frames=total, interval=interval, blit=False)
 
 
-def plot_frontier(result, ax=None, label=None):
+def plot_frontier(
+    result, ax: matplotlib.axes.Axes | None = None, label=None
+) -> matplotlib.axes.Axes:
     """Plot frontier size per expansion step — the memory profile of the search
     (the graph-search analogue of a convergence curve)."""
     import matplotlib.pyplot as plt
@@ -256,14 +262,14 @@ def plot_frontier(result, ax=None, label=None):
     return ax
 
 
-def compare(results):
+def compare(results) -> matplotlib.figure.Figure:
     """Bar charts comparing algorithms on the same problem.
 
     Args:
         results (dict[str, SearchResult]): ``{algorithm_name: result}``.
 
     Returns:
-        The matplotlib Figure (two panels: nodes expanded, and path cost).
+        matplotlib.figure.Figure: two panels — nodes expanded, and path cost.
     """
     import matplotlib.pyplot as plt
 
@@ -303,7 +309,9 @@ def _layout(num_nodes, edges):
         return {n: (float(np.cos(a)), float(np.sin(a))) for n, a in enumerate(ang)}
 
 
-def plot_graph(num_nodes, edges, result, ax=None, node_size=80):
+def plot_graph(
+    num_nodes, edges, result, ax: matplotlib.axes.Axes | None = None, node_size=80
+) -> matplotlib.axes.Axes:
     """Draw an explicit graph with nodes coloured by their role in the search:
     grey = untouched, blue = expanded, gold = on the path, green/red = start/goal.
 
@@ -311,11 +319,11 @@ def plot_graph(num_nodes, edges, result, ax=None, node_size=80):
         num_nodes (int): number of nodes (ids ``0..num_nodes``).
         edges (list): ``(u, v, weight)`` tuples (as returned by the generators).
         result (SearchResult): from ``search_graph`` (run with ``record=True``).
-        ax: optional matplotlib Axes.
+        ax (matplotlib.axes.Axes, optional): axes to draw on; created if omitted.
         node_size (int): scatter marker size.
 
     Returns:
-        The matplotlib Axes.
+        matplotlib.axes.Axes: the axes the graph was drawn on.
     """
     import matplotlib.pyplot as plt
 
