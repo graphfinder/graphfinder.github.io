@@ -14,6 +14,19 @@ Reference generated from the docstrings of the `graphfinder` package.
         - search_implicit
         - SearchResult
 
+## Shortest paths
+
+Negative-weight shortest-path algorithms. See [Shortest paths](shortest-paths.md).
+
+::: graphfinder
+    options:
+      show_root_heading: false
+      members:
+        - bellman_ford
+        - floyd_warshall
+        - ShortestPaths
+        - AllPairs
+
 ## Instances
 
 ::: graphfinder

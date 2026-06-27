@@ -27,12 +27,25 @@ Algorithms (`algorithm=`): "bfs", "dfs", "ucs"/"dijkstra", "greedy", "astar",
 Heuristics (`heuristic=`): a built-in grid name ("zero", "manhattan",
 "euclidean", "octile") *or* a custom callable ``h(node, goal) -> float`` (works
 in any domain — grids, explicit graphs and implicit graphs).
+
+For graphs with **negative edge weights** (where Dijkstra/A* do not apply) use
+:func:`bellman_ford` (single source, detects negative cycles) and
+:func:`floyd_warshall` (all pairs):
+
+    >>> sp = gf.bellman_ford(3, [(0, 1, 4.0), (0, 2, 5.0), (1, 2, -3.0)], source=0)
+    >>> sp.dist[2], sp.path_to(2)        # (1.0, [0, 1, 2])
+    >>> ap = gf.floyd_warshall(3, [(0, 1, 4.0), (1, 2, -3.0)])
+    >>> ap.distance(0, 2), ap.path(0, 2)
 """
 
 import logging
 
 from .graphfinder_native import (
+    AllPairs,
     SearchResult,
+    ShortestPaths,
+    bellman_ford,
+    floyd_warshall,
     gen_barabasi_albert,
     gen_erdos_renyi,
     gen_watts_strogatz,
@@ -48,7 +61,7 @@ from . import integrations, viz
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 
 
 def search(domain, start=None, goal=None, **kwargs):
@@ -79,6 +92,10 @@ __all__ = [
     "search_grid_costs",
     "search_graph",
     "search_implicit",
+    "bellman_ford",
+    "floyd_warshall",
+    "ShortestPaths",
+    "AllPairs",
     "gen_erdos_renyi",
     "gen_barabasi_albert",
     "gen_watts_strogatz",

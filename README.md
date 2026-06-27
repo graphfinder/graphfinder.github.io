@@ -81,6 +81,11 @@ gf.search_graph(300, edges, 0, 299, algorithm="bidirectional")
 # implicit graph: reach 27 from 1 via +1 and *2 (BFS = fewest ops)
 gf.search(lambda s: [(s+1, 1.0), (s*2, 1.0)] if s < 100 else [],
           start=1, goal=27, algorithm="bfs").path   # [1, 2, 3, 6, 12, 13, 26, 27]
+
+# negative edge weights: Bellman-Ford (Dijkstra/A* can't) and Floyd-Warshall
+sp = gf.bellman_ford(3, [(0, 1, 4.0), (0, 2, 5.0), (1, 2, -3.0)], source=0)
+sp.dist[2], sp.path_to(2)                            # (1.0, [0, 1, 2])
+gf.floyd_warshall(3, [(0, 1, 4.0), (1, 2, -3.0)]).distance(0, 2)   # 1.0
 ```
 
 `compare` prints, for one maze:
@@ -101,6 +106,9 @@ Weighted A*        20       yes        25         5
 - **Uninformed:** BFS, DFS, UCS / Dijkstra, depth-limited (DLS), iterative
   deepening (IDDFS), bidirectional BFS.
 - **Informed:** Greedy best-first, A\*, Weighted A\*, IDA\*, beam search.
+- **Negative weights:** Bellman–Ford (single-source, detects negative cycles)
+  and Floyd–Warshall (all-pairs) — the relaxation/DP algorithms for graphs
+  Dijkstra/A\* cannot handle.
 - **Run control:** optional node-expansion budget (`search_with`) with an
   explicit `stop_reason`.
 - **Domains:** `GridGraph` (2-D maze worlds, ASCII maps, 4/8-connected, **per-cell

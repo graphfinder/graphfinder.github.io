@@ -51,7 +51,7 @@ Check off each task as you progress. Phase 1 is done and verified.
 - [ ] Road-network loaders (DIMACS / OSM) + benchmarks
 - [ ] Criterion benchmarks vs networkx / rustworkx baselines
 
-## ⬜ Phase 6 — Advanced & publication
-- [ ] Bellman-Ford (negative weights), Floyd-Warshall (all-pairs)
+## 🟦 Phase 6 — Advanced & publication
+- [x] Bellman-Ford (negative weights), Floyd-Warshall (all-pairs) — v0.9.0
 - [ ] D* Lite / LPA* (dynamic replanning)
 - [ ] JOSS paper + docs site (mkdocs-material)

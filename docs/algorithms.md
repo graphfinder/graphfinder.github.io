@@ -57,6 +57,15 @@ heuristic (`weight=w>1`) to go faster at the price of a bounded sub-optimality.
 **Beam** keeps only the `beam_width` most promising nodes per level — tiny,
 bounded memory, no guarantees.
 
+## Beyond the frontier: negative weights
+
+Every algorithm above is a **frontier traversal**, and the optimal ones
+(UCS/Dijkstra, A\*) **assume non-negative edge costs**. When a weight can be
+negative, use the relaxation/DP algorithms instead — `bellman_ford` (single
+source, detects negative cycles) and `floyd_warshall` (all pairs). They are not
+selected via `algorithm=`; they are their own functions. See
+[Shortest paths](shortest-paths.md).
+
 ## Parameters
 
 | Parameter | Applies to | Meaning |

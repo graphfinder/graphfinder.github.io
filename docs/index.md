@@ -58,6 +58,9 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - **Uninformed:** BFS, DFS, UCS/Dijkstra, depth-limited (DLS), iterative
   deepening (IDDFS), bidirectional BFS.
 - **Informed:** Greedy best-first, A\*, Weighted A\*, IDA\*, beam search.
+- **[Negative weights](shortest-paths.md):** Bellman–Ford (single-source, with
+  negative-cycle detection) and Floyd–Warshall (all-pairs) — for the graphs
+  Dijkstra/A\* can't handle.
 - **Domains:** [grid/maze worlds](domains.md), explicit weighted graphs (CSR),
   implicit graphs via a Python successor callable, and random-graph generators
   (Erdős–Rényi, Barabási–Albert, Watts–Strogatz).
@@ -79,7 +82,8 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - 🧭 **[Getting started](getting-started.md)** — mazes, graphs, implicit search.
 - 📚 **Tutorials** — [grids](tutorials/grid.md) ·
   [comparison](tutorials/comparison.md) · [graphs](tutorials/graphs.md).
-- 🧠 **Concepts** — [algorithms](algorithms.md) · [heuristics](heuristics.md) ·
+- 🧠 **Concepts** — [algorithms](algorithms.md) ·
+  [shortest paths](shortest-paths.md) · [heuristics](heuristics.md) ·
   [domains](domains.md).
 - 🎬 **[Visualization gallery](visualization.md)**.
 - 🔌 **[Integrations](integrations.md)** — NetworkX · SciPy · pandas.

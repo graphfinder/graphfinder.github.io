@@ -48,6 +48,8 @@ pushed is `g_coeff·g(n) + h_coeff·h(n)`. That table **is** the pedagogy:
 | Weighted A* | Priority | 1 | w |
 
 **Invariant:** edge costs are finite and non-negative (Dijkstra/A* assume it).
+*Exception:* the relaxation/DP algorithms in `shortest_paths.rs` (Bellman-Ford,
+Floyd-Warshall) deliberately accept negative edges and detect negative cycles.
 
 ## Architecture
 
@@ -59,9 +61,10 @@ crates/graphfinder-core/   Rust core. No FFI deps. Traits + loop + domains.
   src/graph/               GridGraph (Cell), CsrGraph.
   src/heuristic.rs         Zero, Manhattan, Euclidean, Octile.
   src/strategies.rs        Drivers: dls, iddfs, ida_star, beam_search, bidirectional.
+  src/shortest_paths.rs    Relaxation/DP (not frontier): bellman_ford, floyd_warshall.
   src/domains/             Maze + random-graph generators (benchmarks).
-  examples/                basic.rs, compare.rs, strategies.rs.
-  tests/                   optimality.rs, strategies.rs.
+  examples/                basic.rs, compare.rs, strategies.rs, shortest_paths.rs.
+  tests/                   optimality.rs, strategies.rs, shortest_paths.rs.
 crates/graph-py/           PyO3 binding (native module `graphfinder_native`).
 python/graphfinder/        Python API: __init__ (dispatcher), viz (matplotlib).
 examples/quickstart.py     Python quickstart.
@@ -165,8 +168,10 @@ reacquires the GIL per scored node.
 - ⬜ **Phase 5** — Performance/scale: parallel multi-source BFS & all-pairs
   (rayon), bidirectional/radix-heap Dijkstra, implicit puzzles (8/15-puzzle,
   Hanoi, word-ladder), road networks (DIMACS/OSM).
-- ⬜ **Phase 6** — Bellman-Ford, Floyd-Warshall, D* Lite/LPA* (replanning);
-  JOSS paper.
+- 🟦 **Phase 6** (partial) — ✅ Bellman-Ford + Floyd-Warshall
+  (`src/shortest_paths.rs`, relaxation/DP outside the frontier loop; negative
+  edges + negative-cycle detection; exposed in Python as `bellman_ford` /
+  `floyd_warshall`). ⬜ Remaining: D* Lite/LPA* (replanning); JOSS paper.
 
 See `ROADMAP.md` for the checkable task breakdown.
 

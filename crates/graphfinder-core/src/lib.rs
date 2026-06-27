@@ -34,6 +34,7 @@ pub mod frontier;
 pub mod graph;
 pub mod heuristic;
 pub mod search;
+pub mod shortest_paths;
 pub mod strategies;
 pub mod traits;
 
@@ -43,5 +44,6 @@ pub use heuristic::{Euclidean, Manhattan, Octile, Zero};
 pub use search::{
     search, search_with, Algorithm, FrontierKind, SearchResult, StopReason, TraceStep,
 };
+pub use shortest_paths::{bellman_ford, floyd_warshall, AllPairs, ShortestPaths};
 pub use strategies::{beam_search, bidirectional, dls, ida_star, iddfs};
 pub use traits::{Frontier, Graph, Heuristic};

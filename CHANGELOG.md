@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] — 2026-06-27
+
+### Added
+- **Negative-weight shortest paths** — two relaxation/DP algorithms that work
+  where Dijkstra/A\* cannot (Rust `graphfinder_core::shortest_paths`, Python
+  `graphfinder`):
+  - **Bellman–Ford** (`bellman_ford`): single-source shortest paths over an
+    explicit weighted graph, tolerant of **negative edge weights** and able to
+    **detect a reachable negative cycle**. Returns a `ShortestPaths` with
+    `dist`, `pred`, `negative_cycle` and a `path_to(target)` reconstructor.
+  - **Floyd–Warshall** (`floyd_warshall`): all-pairs shortest paths in `O(V³)`,
+    also negative-edge-aware. Returns an `AllPairs` with `distance(i, j)`,
+    `path(i, j)`, `matrix()` and `negative_cycle`.
+  - Rust example `shortest_paths` + tests; Python tests; new
+    [Shortest paths](https://graphfinder.github.io/shortest-paths/) docs page.
+
+### Notes
+- These two relax the library-wide non-negative-edge invariant **on purpose**;
+  the frontier algorithms (Dijkstra/A\*) still assume non-negative costs. Both
+  default to **directed** edges (`undirected=False`), since an undirected
+  negative edge is itself a trivial negative cycle.
+
 ## [0.8.0] — 2026-06-27
 
 ### Added
@@ -124,6 +146,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.9.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.9.0
 [0.8.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.8.0
 [0.7.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.7.0
 [0.6.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.6.0

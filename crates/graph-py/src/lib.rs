@@ -24,8 +24,9 @@ use graphfinder_core::domains::{
     barabasi_albert, erdos_renyi, random_maze, watts_strogatz, SAMPLE_OPEN, SAMPLE_WALL,
 };
 use graphfinder_core::{
-    beam_search, bidirectional, dls, ida_star, iddfs, search_with, Algorithm, Cell, CsrGraph,
-    Euclidean, Graph, GridGraph, Heuristic, Manhattan, Octile, SearchResult, StopReason, Zero,
+    beam_search, bellman_ford, bidirectional, dls, floyd_warshall, ida_star, iddfs, search_with,
+    Algorithm, Cell, CsrGraph, Euclidean, Graph, GridGraph, Heuristic, Manhattan, Octile,
+    SearchResult, StopReason, Zero,
 };
 
 fn value_err(msg: impl Into<String>) -> PyErr {
@@ -666,6 +667,155 @@ fn random_maze_ascii(width: i32, height: i32, obstacle_density: f64, seed: u64) 
     out
 }
 
+// ---------------------------------------------------------------------------
+// Relaxation / DP shortest paths (negative edges allowed)
+// ---------------------------------------------------------------------------
+
+/// Single-source shortest paths from [`bellman_ford_py`]. Thin wrapper over the
+/// core `ShortestPaths`.
+///
+/// Attributes:
+///     source (int): the node distances are measured from.
+///     dist (list[float]): ``dist[v]`` is the cost of the cheapest
+///         ``source -> v`` path (``inf`` if unreachable).
+///     pred (list[int | None]): predecessor of each node on a shortest path
+///         (``None`` for the source and unreachable nodes).
+///     negative_cycle (bool): whether a negative-weight cycle is reachable from
+///         ``source`` (then the affected distances are not well defined).
+#[pyclass(name = "ShortestPaths")]
+struct PyShortestPaths {
+    inner: graphfinder_core::ShortestPaths,
+}
+
+#[pymethods]
+impl PyShortestPaths {
+    #[getter]
+    fn source(&self) -> usize {
+        self.inner.source
+    }
+    #[getter]
+    fn dist(&self) -> Vec<f64> {
+        self.inner.dist.clone()
+    }
+    #[getter]
+    fn pred(&self) -> Vec<Option<usize>> {
+        self.inner.pred.clone()
+    }
+    #[getter]
+    fn negative_cycle(&self) -> bool {
+        self.inner.negative_cycle
+    }
+
+    /// Rebuild the ``source -> target`` shortest path (inclusive), or ``None``
+    /// if ``target`` is unreachable.
+    fn path_to(&self, target: usize) -> Option<Vec<usize>> {
+        self.inner.path_to(target)
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "ShortestPaths(source={}, nodes={}, negative_cycle={})",
+            self.inner.source,
+            self.inner.num_nodes(),
+            self.inner.negative_cycle
+        )
+    }
+}
+
+/// All-pairs shortest paths from [`floyd_warshall_py`]. Thin wrapper over the
+/// core `AllPairs`.
+///
+/// Attributes:
+///     num_nodes (int): number of nodes ``n``.
+///     negative_cycle (bool): whether the graph has any negative-weight cycle.
+#[pyclass(name = "AllPairs")]
+struct PyAllPairs {
+    inner: graphfinder_core::AllPairs,
+}
+
+#[pymethods]
+impl PyAllPairs {
+    #[getter]
+    fn num_nodes(&self) -> usize {
+        self.inner.num_nodes()
+    }
+    #[getter]
+    fn negative_cycle(&self) -> bool {
+        self.inner.negative_cycle
+    }
+
+    /// Cost of the cheapest ``from_ -> to`` path (``inf`` if none, ``0`` if
+    /// ``from_ == to``).
+    fn distance(&self, from_: usize, to: usize) -> f64 {
+        self.inner.distance(from_, to)
+    }
+
+    /// The full ``n x n`` distance matrix as a list of rows.
+    fn matrix(&self) -> Vec<Vec<f64>> {
+        self.inner.matrix()
+    }
+
+    /// Rebuild the cheapest ``from_ -> to`` path (inclusive), or ``None`` if
+    /// there is none.
+    fn path(&self, from_: usize, to: usize) -> Option<Vec<usize>> {
+        self.inner.path(from_, to)
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "AllPairs(num_nodes={}, negative_cycle={})",
+            self.inner.num_nodes(),
+            self.inner.negative_cycle
+        )
+    }
+}
+
+/// **Bellman–Ford** single-source shortest paths on an explicit weighted graph.
+///
+/// Unlike Dijkstra/A\*, this tolerates **negative edge weights** and reports a
+/// reachable negative cycle. Edges are ``(u, v, w)`` over ``0..num_nodes``.
+///
+/// ``undirected`` defaults to ``False``: negative weights are the whole point,
+/// and an undirected negative edge is itself a trivial negative cycle.
+#[pyfunction]
+#[pyo3(name = "bellman_ford", signature = (num_nodes, edges, source, undirected=false))]
+fn bellman_ford_py(
+    py: Python<'_>,
+    num_nodes: usize,
+    edges: Vec<(usize, usize, f64)>,
+    source: usize,
+    undirected: bool,
+) -> PyResult<PyShortestPaths> {
+    if source >= num_nodes {
+        return Err(value_err("source must be < num_nodes"));
+    }
+    let inner = py.allow_threads(|| {
+        let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
+        bellman_ford(&graph, source)
+    });
+    Ok(PyShortestPaths { inner })
+}
+
+/// **Floyd–Warshall** all-pairs shortest paths on an explicit weighted graph.
+///
+/// ``O(V³)`` — for small/medium or dense graphs where you want *every* distance
+/// at once. Tolerates negative edges and flags any negative cycle. Edges are
+/// ``(u, v, w)`` over ``0..num_nodes``; ``undirected`` defaults to ``False``.
+#[pyfunction]
+#[pyo3(name = "floyd_warshall", signature = (num_nodes, edges, undirected=false))]
+fn floyd_warshall_py(
+    py: Python<'_>,
+    num_nodes: usize,
+    edges: Vec<(usize, usize, f64)>,
+    undirected: bool,
+) -> PyResult<PyAllPairs> {
+    let inner = py.allow_threads(|| {
+        let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
+        floyd_warshall(&graph)
+    });
+    Ok(PyAllPairs { inner })
+}
+
 #[pymodule]
 fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_grid, m)?)?;
@@ -677,6 +827,10 @@ fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(gen_watts_strogatz, m)?)?;
     m.add_function(wrap_pyfunction!(sample_maze, m)?)?;
     m.add_function(wrap_pyfunction!(random_maze_ascii, m)?)?;
+    m.add_function(wrap_pyfunction!(bellman_ford_py, m)?)?;
+    m.add_function(wrap_pyfunction!(floyd_warshall_py, m)?)?;
     m.add_class::<PySearchResult>()?;
+    m.add_class::<PyShortestPaths>()?;
+    m.add_class::<PyAllPairs>()?;
     Ok(())
 }

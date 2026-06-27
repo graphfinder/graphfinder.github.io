@@ -44,6 +44,7 @@ nav:
       - Random & implicit graphs: tutorials/graphs.md
   - Concepts:
       - Algorithms: algorithms.md
+      - Shortest paths (negative weights): shortest-paths.md
       - Heuristics: heuristics.md
       - Domains: domains.md
       - Visualization: visualization.md

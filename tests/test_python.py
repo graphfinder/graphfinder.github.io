@@ -153,3 +153,60 @@ def test_random_maze_ascii_roundtrips():
     assert "S" in m and "G" in m
     r = gf.search(m, algorithm="astar")  # may or may not be solvable
     assert r.stop_reason in ("goal", "exhausted")
+
+
+# --- shortest-path algorithms (Bellman-Ford / Floyd-Warshall) --------------
+
+
+def test_bellman_ford_matches_ucs_non_negative():
+    # On a non-negative graph, Bellman-Ford agrees with UCS on every distance.
+    edges = [(0, 1, 2.0), (0, 2, 5.0), (1, 2, 1.0), (2, 3, 1.0), (1, 3, 7.0)]
+    sp = gf.bellman_ford(4, edges, source=0)
+    assert not sp.negative_cycle
+    for t in range(4):
+        ucs = gf.search_graph(4, edges, 0, t, algorithm="ucs", undirected=False)
+        if ucs.found:
+            assert sp.dist[t] == ucs.cost
+            assert sp.path_to(t) == ucs.path
+        else:
+            assert math.isinf(sp.dist[t])
+
+
+def test_bellman_ford_negative_edge():
+    sp = gf.bellman_ford(3, [(0, 1, 4.0), (0, 2, 5.0), (1, 2, -3.0)], source=0)
+    assert sp.dist[2] == 1.0
+    assert sp.path_to(2) == [0, 1, 2]
+    assert sp.pred[2] == 1
+
+
+def test_bellman_ford_detects_negative_cycle():
+    sp = gf.bellman_ford(3, [(0, 1, 1.0), (1, 2, -3.0), (2, 0, 1.0)], source=0)
+    assert sp.negative_cycle
+
+
+def test_bellman_ford_rejects_bad_source():
+    with pytest.raises(ValueError):
+        gf.bellman_ford(3, [(0, 1, 1.0)], source=9)
+
+
+def test_floyd_warshall_matches_bellman_ford():
+    edges = [(0, 1, 2.0), (0, 2, 5.0), (1, 2, 1.0), (2, 3, 1.0), (3, 0, 4.0)]
+    ap = gf.floyd_warshall(4, edges)
+    assert not ap.negative_cycle
+    assert ap.num_nodes == 4
+    for s in range(4):
+        sp = gf.bellman_ford(4, edges, source=s)
+        for t in range(4):
+            assert ap.distance(s, t) == sp.dist[t]
+    assert ap.path(0, 3) == [0, 1, 2, 3]
+    assert ap.distance(0, 3) == 4.0
+    assert ap.path(2, 2) == [2]
+    # matrix() rows agree with distance()
+    mat = ap.matrix()
+    assert mat[0][3] == ap.distance(0, 3)
+
+
+def test_floyd_warshall_unreachable():
+    ap = gf.floyd_warshall(3, [(0, 1, 1.0)])
+    assert math.isinf(ap.distance(0, 2))
+    assert ap.path(0, 2) is None
