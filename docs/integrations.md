@@ -10,6 +10,8 @@ pip install "graphfinder[scipy]"      # search over scipy.sparse adjacency
 pip install "graphfinder[pandas]"     # edge-list DataFrames + result tables
 pip install "graphfinder[osm]"        # route on real road networks (OSMnx)
 pip install "graphfinder[agents]"     # LangChain routing tool
+pip install "graphfinder[gym]"        # GridWorld RL environment + A* oracle
+pip install "graphfinder[graphviz]"   # export graphs/paths to DOT/SVG
 ```
 
 Every `search` helper returns a `LabeledResult`: the `path` is mapped back to
@@ -142,6 +144,45 @@ tool.invoke({"source": "A", "target": "E"})
 The graph is bound at tool-creation time; the agent only chooses `source`,
 `target` and an allowed `algorithm`.
 
+## Gymnasium — a GridWorld env with an A\* oracle
+
+A reinforcement-learning environment backed by a graphfinder grid. The agent goes
+from `S` to `G`; walls are `#`, digits `1`–`9` are terrain costs. Observations are
+the flattened cell index, actions are moves (4, or 8 with `diagonal=True`), and
+the reward is the negative cost of the entered cell.
+
+```python
+from graphfinder.integrations import gym as gfgym
+
+env = gfgym.GridWorldEnv("S....\n.###.\n....G")
+obs, info = env.reset()
+
+# A* oracle — useful for imitation learning, reward shaping or scoring an agent:
+action = gfgym.optimal_action(env)   # the move A* would make from here
+path = gfgym.optimal_path(env)       # the whole optimal path of cells
+```
+
+## Graphviz — export graphs and paths
+
+Render an edge-list graph (and a found path) to DOT/SVG. `to_dot` builds the DOT
+text with **no dependency**; `source` wraps it in a `graphviz.Source` you can
+render or display in a notebook (needs the `graphviz` package + `dot` binary).
+
+```python
+from graphfinder.integrations import graphviz as gfgv
+from graphfinder.integrations import pandas as gfpd
+
+edges = [("A", "B", 1), ("B", "C", 1), ("A", "C", 5)]
+r = gfpd.search(__import__("pandas").DataFrame(edges, columns=["source", "target", "weight"]),
+                "A", "C")
+
+print(gfgv.to_dot(edges, r))         # DOT string, path highlighted
+gfgv.source(edges, r).render("route", format="svg")   # writes route.svg
+```
+
+Path nodes are gold, the start green, the goal red, and path edges are drawn
+thick.
+
 ## More integrations
 
-Have an idea (igraph, Graphviz export, a Gymnasium env, …)? Open an issue.
+Have an idea (igraph, a different framework, …)? Open an issue.

@@ -78,3 +78,16 @@ See [Integrations](integrations.md) for usage. Each returns a `LabeledResult`.
       members:
         - make_router
         - as_langchain_tool
+
+::: graphfinder.integrations.gym
+    options:
+      members:
+        - GridWorldEnv
+        - optimal_path
+        - optimal_action
+
+::: graphfinder.integrations.graphviz
+    options:
+      members:
+        - to_dot
+        - source

@@ -119,7 +119,8 @@ Weighted A*        20       yes        25         5
   bar charts), `plot_graph` (general graph coloured by search state).
 - **Integrations** (`graphfinder.integrations`): **NetworkX**, **SciPy** sparse
   adjacency, **pandas** edge-list DataFrames, **OSMnx** road networks (geographic
-  A\*), and a safe **LangChain** routing tool. Optional extras:
+  A\*), a safe **LangChain** routing tool, a **Gymnasium** GridWorld env with an
+  A\* oracle, and **Graphviz** export. Optional extras:
   `pip install graphfinder[networkx]`.
 - **Reproducibility:** seeded random maze generator; deterministic tie-breaking.
 

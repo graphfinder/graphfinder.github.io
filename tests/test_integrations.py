@@ -142,6 +142,63 @@ def test_agents_langchain_tool():
     assert res["found"] and res["path"][0] == "A" and res["path"][-1] == "E"
 
 
+def test_gym_env_and_oracle():
+    pytest.importorskip("gymnasium")
+    from graphfinder.integrations import gym as gfgym
+
+    maze = "S...\n.##.\n...G"
+    env = gfgym.GridWorldEnv(maze)
+    obs, info = env.reset()
+    assert obs == 0  # start at (0,0) → index 0
+
+    # Following the A* oracle must reach the goal with a finite reward.
+    steps, terminated = 0, False
+    total = 0.0
+    while not terminated and steps < 100:
+        action = gfgym.optimal_action(env)
+        assert action is not None
+        obs, reward, terminated, truncated, info = env.step(action)
+        total += reward
+        steps += 1
+    assert terminated
+    # Oracle path cost equals graphfinder's A* cost from the start.
+    opt = gf.search(maze, algorithm="astar")
+    assert steps == len(opt.path) - 1
+
+
+def test_gym_illegal_move_penalty():
+    pytest.importorskip("gymnasium")
+    from graphfinder.integrations import gym as gfgym
+
+    env = gfgym.GridWorldEnv("SG")  # 1x2: moving up (action 0) is illegal
+    env.reset()
+    _obs, reward, terminated, _trunc, _info = env.step(0)  # up into the wall/edge
+    assert reward == -1.0 and not terminated
+
+
+def test_graphviz_to_dot_no_dependency():
+    from graphfinder.integrations import graphviz as gfgv
+
+    edges = [("A", "B", 1.0), ("B", "C", 1.0), ("A", "C", 5.0)]
+
+    class _R:  # minimal stand-in for a result with a path
+        path = ["A", "B", "C"]
+
+    dot = gfgv.to_dot(edges, _R(), directed=False)
+    assert dot.startswith("graph G {")
+    assert '"A" -- "B"' in dot
+    assert "penwidth=3" in dot  # path edges highlighted
+    assert "#43a047" in dot  # start node coloured green
+
+
+def test_graphviz_source_requires_pkg():
+    pytest.importorskip("graphviz")
+    from graphfinder.integrations import graphviz as gfgv
+
+    src = gfgv.source([("A", "B", 1.0)])
+    assert "A" in src.source
+
+
 def test_lazy_attribute_access():
     # gf.integrations.<name> works without importing submodules explicitly.
     pytest.importorskip("networkx")

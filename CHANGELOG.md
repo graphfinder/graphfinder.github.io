@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] — 2026-06-27
+
+### Added
+- **Gymnasium** (`graphfinder.integrations.gym`): `GridWorldEnv`, a Gymnasium RL
+  environment over a graphfinder grid (walls, terrain costs, 4/8 actions), plus
+  an **A\* oracle** (`optimal_path` / `optimal_action`) for imitation learning,
+  reward shaping or scoring an agent. `[gym]` extra.
+- **Graphviz** (`graphfinder.integrations.graphviz`): `to_dot` exports an
+  edge-list graph and a found path to DOT (no dependency); `source` returns a
+  renderable `graphviz.Source`. `[graphviz]` extra.
+
 ## [0.7.0] — 2026-06-26
 
 ### Removed
@@ -113,6 +124,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.8.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.8.0
 [0.7.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.7.0
 [0.6.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.6.0
 [0.5.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.5.0

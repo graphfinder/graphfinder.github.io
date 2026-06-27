@@ -8,7 +8,7 @@ build-backend = "maturin"
 
 [project]
 name = "graphfinder"
-version = "0.7.0"
+version = "0.8.0"
 description = "Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
 readme = "python/README.md"
 requires-python = ">=3.9"
@@ -35,6 +35,8 @@ scipy = ["scipy"]
 pandas = ["pandas"]
 osm = ["osmnx"]   # geographic routing on real road networks
 agents = ["langchain-core", "pydantic"]   # LLM routing tool
+gym = ["gymnasium"]   # GridWorld RL environment + A* oracle
+graphviz = ["graphviz"]   # export graphs/paths to DOT/SVG
 docs = ["mkdocs-material", "mkdocstrings[python]"]
 
 [project.urls]

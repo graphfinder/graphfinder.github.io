@@ -60,6 +60,6 @@ jobs:
           python -m pip install --upgrade pip
           # builds the Rust core via the maturin backend; extras exercise the
           # graphfinder.integrations tests (else they skip).
-          pip install ".[networkx,scipy,pandas,agents]" pytest
+          pip install ".[networkx,scipy,pandas,agents,gym,graphviz]" pytest
       - name: Run tests
         run: pytest -q tests/
