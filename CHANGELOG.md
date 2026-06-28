@@ -4,6 +4,24 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] — 2026-06-28
+
+### Added
+- **Implicit puzzle domains** — classic state-space problems generated on demand
+  through the same `Graph` trait, so every algorithm runs on them unchanged and
+  natively (GIL released for the built-in heuristics):
+  - **Sliding-tile N-puzzle** (`search_npuzzle`; Rust `puzzles::NPuzzle`):
+    8-puzzle, 15-puzzle, … with the `manhattan`/`misplaced` admissible
+    heuristics and an `is_solvable` parity check (unsolvable starts raise).
+  - **Towers of Hanoi** (`search_hanoi`; `puzzles::Hanoi`): 3+ pegs, with the
+    `misplaced`-disks heuristic; the 3-peg optimum is `2^disks − 1`.
+  - **Word ladder** (`search_wordladder`; `puzzles::WordLadder`): one-letter
+    steps over a dictionary, with the `hamming` heuristic.
+  - All accept the usual `algorithm=` / `heuristic=` (built-in name, `"zero"`,
+    or a custom callable) / `max_nodes=` knobs. Rust example `puzzles` + tests;
+    Python tests; new [Implicit puzzles](https://graphfinder.github.io/puzzles/)
+    docs page.
+
 ## [0.9.0] — 2026-06-27
 
 ### Added
@@ -146,6 +164,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.10.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.10.0
 [0.9.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.9.0
 [0.8.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.8.0
 [0.7.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.7.0

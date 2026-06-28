@@ -25,8 +25,9 @@ use graphfinder_core::domains::{
 };
 use graphfinder_core::{
     beam_search, bellman_ford, bidirectional, dls, floyd_warshall, ida_star, iddfs, search_with,
-    Algorithm, Cell, CsrGraph, Euclidean, Graph, GridGraph, Heuristic, Manhattan, Octile,
-    SearchResult, StopReason, Zero,
+    Algorithm, Cell, CsrGraph, Euclidean, Graph, GridGraph, Hanoi, HanoiMisplaced, Heuristic,
+    LadderHamming, Manhattan, NPuzzle, Octile, PuzzleManhattan, PuzzleMisplaced, SearchResult,
+    StopReason, WordLadder, Zero,
 };
 
 fn value_err(msg: impl Into<String>) -> PyErr {
@@ -113,6 +114,19 @@ impl IntoPyNode for usize {
 impl IntoPyNode for Vec<i64> {
     fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
         state_to_py(py, &self)
+    }
+}
+impl IntoPyNode for Vec<u8> {
+    // Puzzle states (N-puzzle tiles, Hanoi peg-per-disk) → a tuple of ints.
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
+        let v: Vec<i64> = self.into_iter().map(|x| x as i64).collect();
+        PyTuple::new_bound(py, &v).into()
+    }
+}
+impl IntoPyNode for String {
+    // Word-ladder states → the word itself.
+    fn into_py_node(self, py: Python<'_>) -> Py<PyAny> {
+        self.into_py(py)
     }
 }
 
@@ -816,6 +830,239 @@ fn floyd_warshall_py(
     Ok(PyAllPairs { inner })
 }
 
+// ---------------------------------------------------------------------------
+// Implicit puzzle domains (native, GIL-released for built-in heuristics)
+// ---------------------------------------------------------------------------
+
+/// Validate that `tiles` is a permutation of `0..n`.
+fn check_permutation(tiles: &[i64], n: usize, what: &str) -> PyResult<()> {
+    let mut seen = vec![false; n];
+    for &v in tiles {
+        if v < 0 || v as usize >= n || seen[v as usize] {
+            return Err(value_err(format!(
+                "{what} must be a permutation of 0..{} (0 = blank)",
+                n - 1
+            )));
+        }
+        seen[v as usize] = true;
+    }
+    Ok(())
+}
+
+/// Solve a sliding-tile **N-puzzle** (3×3 → 8-puzzle, 4×4 → 15-puzzle, …).
+///
+/// `tiles` is the flat, row-major start state with `0` for the blank; its length
+/// must be a perfect square. `goal` defaults to the canonical `1, 2, …, n−1, 0`.
+/// States in the result are tuples of ints. `heuristic` is `"manhattan"`
+/// (default), `"misplaced"`, `"zero"`, or a callable `h(state, goal) -> float`.
+/// Raises if the configuration is not solvable into the goal (parity).
+#[pyfunction]
+#[pyo3(signature = (
+    tiles, algorithm="astar", heuristic=None, goal=None, record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_npuzzle(
+    py: Python<'_>,
+    tiles: Vec<i64>,
+    algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
+    goal: Option<Vec<i64>>,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+) -> PyResult<PySearchResult> {
+    let n = tiles.len();
+    let width = (n as f64).sqrt().round() as usize;
+    if n == 0 || width * width != n {
+        return Err(value_err(
+            "tiles length must be a non-zero perfect square (9, 16, 25, …)",
+        ));
+    }
+    check_permutation(&tiles, n, "tiles")?;
+    let start: Vec<u8> = tiles.iter().map(|&x| x as u8).collect();
+    let puzzle = NPuzzle::new(width);
+    let goal: Vec<u8> = match goal {
+        Some(g) => {
+            if g.len() != n {
+                return Err(value_err("goal must have the same length as tiles"));
+            }
+            check_permutation(&g, n, "goal")?;
+            g.iter().map(|&x| x as u8).collect()
+        }
+        None => puzzle.goal(),
+    };
+    if !puzzle.is_solvable(&start, &goal) {
+        return Err(value_err(
+            "this configuration is not solvable into the goal (parity)",
+        ));
+    }
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    let r = match resolve_heuristic(heuristic, "manhattan")? {
+        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
+            match name.as_str() {
+                "manhattan" => run_algo(
+                    &puzzle,
+                    start,
+                    goal,
+                    algorithm,
+                    PuzzleManhattan { width },
+                    record,
+                    &opts,
+                ),
+                "misplaced" => run_algo(
+                    &puzzle,
+                    start,
+                    goal,
+                    algorithm,
+                    PuzzleMisplaced,
+                    record,
+                    &opts,
+                ),
+                "zero" => run_algo(&puzzle, start, goal, algorithm, Zero, record, &opts),
+                other => Err(value_err(format!(
+                    "unknown npuzzle heuristic: '{other}'. Use manhattan, misplaced, zero, \
+                     or a callable h(state, goal) -> float"
+                ))),
+            }
+        })?,
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func));
+            run_algo(&puzzle, start, goal, algorithm, h, record, &opts)?
+        }
+    };
+    to_py_result(py, r)
+}
+
+/// Solve the **Towers of Hanoi** with `disks` disks over `pegs` pegs (default 3).
+///
+/// Start = every disk on peg 0; goal = every disk on the last peg. A state in the
+/// result is a tuple `peg_of_disk[d]` (disk 0 = smallest). `heuristic` is
+/// `"misplaced"` (default), `"zero"`, or a callable `h(state, goal) -> float`.
+/// The classic 3-peg optimum is `2^disks − 1` moves.
+#[pyfunction]
+#[pyo3(signature = (
+    disks, algorithm="astar", heuristic=None, pegs=3, record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_hanoi(
+    py: Python<'_>,
+    disks: usize,
+    algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
+    pegs: usize,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+) -> PyResult<PySearchResult> {
+    if disks == 0 {
+        return Err(value_err("disks must be ≥ 1"));
+    }
+    if pegs < 3 {
+        return Err(value_err("pegs must be ≥ 3"));
+    }
+    let game = Hanoi::with_pegs(disks, pegs);
+    let start = game.start();
+    let goal = game.goal();
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    let r = match resolve_heuristic(heuristic, "misplaced")? {
+        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
+            match name.as_str() {
+                "misplaced" => {
+                    run_algo(&game, start, goal, algorithm, HanoiMisplaced, record, &opts)
+                }
+                "zero" => run_algo(&game, start, goal, algorithm, Zero, record, &opts),
+                other => Err(value_err(format!(
+                    "unknown hanoi heuristic: '{other}'. Use misplaced, zero, or a callable"
+                ))),
+            }
+        })?,
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func));
+            run_algo(&game, start, goal, algorithm, h, record, &opts)?
+        }
+    };
+    to_py_result(py, r)
+}
+
+/// Solve a **word ladder** from `start` to `goal` over a `words` dictionary
+/// (equal-length lowercase words; `start`/`goal` are added automatically so the
+/// endpoints are valid nodes). Each step changes exactly one letter. `heuristic`
+/// is `"hamming"` (default), `"zero"`, or a callable `h(word, goal) -> float`.
+#[pyfunction]
+#[pyo3(signature = (
+    start, goal, words, algorithm="astar", heuristic=None, record=true,
+    weight=2.0, beam_width=None, depth_limit=None, max_nodes=None
+))]
+#[allow(clippy::too_many_arguments)]
+fn search_wordladder(
+    py: Python<'_>,
+    start: String,
+    goal: String,
+    words: Vec<String>,
+    algorithm: &str,
+    heuristic: Option<Bound<'_, PyAny>>,
+    record: bool,
+    weight: f64,
+    beam_width: Option<usize>,
+    depth_limit: Option<usize>,
+    max_nodes: Option<usize>,
+) -> PyResult<PySearchResult> {
+    let start = start.to_lowercase();
+    let goal = goal.to_lowercase();
+    if start.len() != goal.len() {
+        return Err(value_err("start and goal must have the same length"));
+    }
+    let mut ladder = WordLadder::new(words);
+    ladder.insert(start.clone());
+    ladder.insert(goal.clone());
+    let opts = RunOpts {
+        weight,
+        beam_width: beam_width.unwrap_or(usize::MAX),
+        depth_limit,
+        max_nodes,
+    };
+    let r = match resolve_heuristic(heuristic, "hamming")? {
+        HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<String>> {
+            match name.as_str() {
+                "hamming" => run_algo(
+                    &ladder,
+                    start,
+                    goal,
+                    algorithm,
+                    LadderHamming,
+                    record,
+                    &opts,
+                ),
+                "zero" => run_algo(&ladder, start, goal, algorithm, Zero, record, &opts),
+                other => Err(value_err(format!(
+                    "unknown wordladder heuristic: '{other}'. Use hamming, zero, or a callable"
+                ))),
+            }
+        })?,
+        HeuristicArg::Custom(func) => {
+            let h: PyHeuristic<String> = PyHeuristic::new(Some(func));
+            run_algo(&ladder, start, goal, algorithm, h, record, &opts)?
+        }
+    };
+    to_py_result(py, r)
+}
+
 #[pymodule]
 fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(search_grid, m)?)?;
@@ -829,6 +1076,9 @@ fn graphfinder_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(random_maze_ascii, m)?)?;
     m.add_function(wrap_pyfunction!(bellman_ford_py, m)?)?;
     m.add_function(wrap_pyfunction!(floyd_warshall_py, m)?)?;
+    m.add_function(wrap_pyfunction!(search_npuzzle, m)?)?;
+    m.add_function(wrap_pyfunction!(search_hanoi, m)?)?;
+    m.add_function(wrap_pyfunction!(search_wordladder, m)?)?;
     m.add_class::<PySearchResult>()?;
     m.add_class::<PyShortestPaths>()?;
     m.add_class::<PyAllPairs>()?;

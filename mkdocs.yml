@@ -45,6 +45,7 @@ nav:
   - Concepts:
       - Algorithms: algorithms.md
       - Shortest paths (negative weights): shortest-paths.md
+      - Implicit puzzles: puzzles.md
       - Heuristics: heuristics.md
       - Domains: domains.md
       - Visualization: visualization.md

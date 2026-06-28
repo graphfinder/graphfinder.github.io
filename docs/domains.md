@@ -124,6 +124,10 @@ Because the state is an arbitrary tuple, you can encode puzzle boards, register
 machines, or any transition system. Pair it with a custom
 [heuristic](heuristics.md) callable for A\*/IDA\*.
 
+For the most common puzzles you don't even need a successor function:
+graphfinder ships **native** 8/15-puzzle, Towers of Hanoi and word-ladder
+domains (with their admissible heuristics) — see [Implicit puzzles](puzzles.md).
+
 ## Writing a new domain (Rust)
 
 A domain is one trait method — return each successor and its edge cost:

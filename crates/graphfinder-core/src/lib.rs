@@ -33,6 +33,7 @@ pub mod domains;
 pub mod frontier;
 pub mod graph;
 pub mod heuristic;
+pub mod puzzles;
 pub mod search;
 pub mod shortest_paths;
 pub mod strategies;
@@ -41,6 +42,9 @@ pub mod traits;
 pub use frontier::{Fifo, Lifo, PriorityQueue};
 pub use graph::{Cell, CsrGraph, GridGraph};
 pub use heuristic::{Euclidean, Manhattan, Octile, Zero};
+pub use puzzles::{
+    Hanoi, HanoiMisplaced, LadderHamming, NPuzzle, PuzzleManhattan, PuzzleMisplaced, WordLadder,
+};
 pub use search::{
     search, search_with, Algorithm, FrontierKind, SearchResult, StopReason, TraceStep,
 };

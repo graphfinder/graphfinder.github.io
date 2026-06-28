@@ -86,6 +86,12 @@ gf.search(lambda s: [(s+1, 1.0), (s*2, 1.0)] if s < 100 else [],
 sp = gf.bellman_ford(3, [(0, 1, 4.0), (0, 2, 5.0), (1, 2, -3.0)], source=0)
 sp.dist[2], sp.path_to(2)                            # (1.0, [0, 1, 2])
 gf.floyd_warshall(3, [(0, 1, 4.0), (1, 2, -3.0)]).distance(0, 2)   # 1.0
+
+# built-in implicit puzzles (generated on demand, GIL-free)
+gf.search_hanoi(disks=4).cost                        # 15.0  (== 2**4 - 1)
+gf.search_npuzzle([1, 2, 3, 4, 0, 6, 7, 5, 8], heuristic="manhattan").cost   # 2.0
+gf.search_wordladder("hit", "cog",
+                     ["hit", "hot", "dot", "dog", "cog", "lot", "log"]).path
 ```
 
 `compare` prints, for one maze:
@@ -115,6 +121,9 @@ Weighted A*        20       yes        25         5
   terrain cost**), `CsrGraph` (explicit weighted graphs in cache-friendly CSR
   layout), and seeded random-graph generators (Erdős–Rényi, Barabási–Albert,
   Watts–Strogatz).
+- **Implicit puzzles:** built-in native 8/15-puzzle, Towers of Hanoi and
+  word-ladder — state spaces too large to store, generated on demand and solved
+  by the same loop (GIL-free).
 - **Heuristics:** Zero (uninformed), Manhattan, Euclidean, Octile, **or your own
   callable** `h(node, goal) -> float` (works in any domain).
 - **Instrumentation for visualization & comparison:** every run reports the

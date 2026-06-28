@@ -62,9 +62,10 @@ crates/graphfinder-core/   Rust core. No FFI deps. Traits + loop + domains.
   src/heuristic.rs         Zero, Manhattan, Euclidean, Octile.
   src/strategies.rs        Drivers: dls, iddfs, ida_star, beam_search, bidirectional.
   src/shortest_paths.rs    Relaxation/DP (not frontier): bellman_ford, floyd_warshall.
+  src/puzzles/             Implicit domains: NPuzzle, Hanoi, WordLadder (+heuristics).
   src/domains/             Maze + random-graph generators (benchmarks).
-  examples/                basic.rs, compare.rs, strategies.rs, shortest_paths.rs.
-  tests/                   optimality.rs, strategies.rs, shortest_paths.rs.
+  examples/                basic.rs, compare.rs, strategies.rs, shortest_paths.rs, puzzles.rs.
+  tests/                   optimality.rs, strategies.rs, shortest_paths.rs, puzzles.rs.
 crates/graph-py/           PyO3 binding (native module `graphfinder_native`).
 python/graphfinder/        Python API: __init__ (dispatcher), viz (matplotlib).
 examples/quickstart.py     Python quickstart.
@@ -165,9 +166,11 @@ reacquires the GIL per scored node.
   (networkx layout if available, else circular). `examples/demo_viz.py` writes
   `assets/`; `tests/test_viz.py` (Agg). Deferred: `plot_search_tree` (needs the
   core to expose the parent map, not just the path) and notebooks.
-- ⬜ **Phase 5** — Performance/scale: parallel multi-source BFS & all-pairs
-  (rayon), bidirectional/radix-heap Dijkstra, implicit puzzles (8/15-puzzle,
-  Hanoi, word-ladder), road networks (DIMACS/OSM).
+- 🟦 **Phase 5** (partial) — ✅ implicit puzzles (8/15-puzzle, Hanoi,
+  word-ladder) in `src/puzzles/`, exposed in Python as `search_npuzzle` /
+  `search_hanoi` / `search_wordladder` (v0.10.0). ⬜ Remaining: parallel
+  multi-source BFS & all-pairs (rayon), bidirectional/radix-heap Dijkstra, road
+  networks (DIMACS/OSM).
 - 🟦 **Phase 6** (partial) — ✅ Bellman-Ford + Floyd-Warshall
   (`src/shortest_paths.rs`, relaxation/DP outside the frontier loop; negative
   edges + negative-cycle detection; exposed in Python as `bellman_ford` /

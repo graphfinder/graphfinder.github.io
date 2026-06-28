@@ -64,6 +64,8 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - **Domains:** [grid/maze worlds](domains.md), explicit weighted graphs (CSR),
   implicit graphs via a Python successor callable, and random-graph generators
   (Erdős–Rényi, Barabási–Albert, Watts–Strogatz).
+- **[Implicit puzzles](puzzles.md):** built-in, native 8/15-puzzle, Towers of
+  Hanoi and word-ladder — the same search loop on state spaces too big to store.
 - **Heuristics:** [zero, Manhattan, Euclidean, octile](heuristics.md).
 - **[Visualization](visualization.md):** maze-search animation, static grids,
   frontier-size curves, work-vs-quality comparison, and general-graph plots.
@@ -83,8 +85,8 @@ what UCS does**; Weighted A\* trades a little optimality for even less work.
 - 📚 **Tutorials** — [grids](tutorials/grid.md) ·
   [comparison](tutorials/comparison.md) · [graphs](tutorials/graphs.md).
 - 🧠 **Concepts** — [algorithms](algorithms.md) ·
-  [shortest paths](shortest-paths.md) · [heuristics](heuristics.md) ·
-  [domains](domains.md).
+  [shortest paths](shortest-paths.md) · [implicit puzzles](puzzles.md) ·
+  [heuristics](heuristics.md) · [domains](domains.md).
 - 🎬 **[Visualization gallery](visualization.md)**.
 - 🔌 **[Integrations](integrations.md)** — NetworkX · SciPy · pandas.
 - 🛠️ **[Design & internals](architecture.md)** and the

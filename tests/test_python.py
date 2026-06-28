@@ -210,3 +210,60 @@ def test_floyd_warshall_unreachable():
     ap = gf.floyd_warshall(3, [(0, 1, 1.0)])
     assert math.isinf(ap.distance(0, 2))
     assert ap.path(0, 2) is None
+
+
+# --- implicit puzzles (N-puzzle / Hanoi / word ladder) ---------------------
+
+
+def test_hanoi_optimal_is_two_pow_n_minus_one():
+    for disks in range(1, 7):
+        r = gf.search_hanoi(disks=disks)
+        assert r.found
+        assert r.cost == 2**disks - 1
+    # start and goal are tuples of peg indices
+    r = gf.search_hanoi(disks=3)
+    assert r.path[0] == (0, 0, 0)
+    assert r.path[-1] == (2, 2, 2)
+
+
+def test_npuzzle_astar_matches_bfs_and_is_efficient():
+    tiles = [1, 2, 3, 4, 0, 6, 7, 5, 8]
+    bfs = gf.search_npuzzle(tiles, algorithm="bfs", heuristic="zero")
+    ucs = gf.search_npuzzle(tiles, algorithm="ucs", heuristic="zero")
+    astar = gf.search_npuzzle(tiles, algorithm="astar", heuristic="manhattan")
+    assert astar.found and astar.cost == bfs.cost
+    assert astar.nodes_expanded <= ucs.nodes_expanded
+    # states are tuples; goal is the canonical solved board
+    assert astar.path[-1] == (1, 2, 3, 4, 5, 6, 7, 8, 0)
+
+
+def test_npuzzle_unsolvable_raises():
+    # swapping two tiles flips parity → unsolvable
+    with pytest.raises(ValueError):
+        gf.search_npuzzle([2, 1, 3, 4, 5, 6, 7, 8, 0])
+
+
+def test_npuzzle_rejects_bad_input():
+    with pytest.raises(ValueError):
+        gf.search_npuzzle([1, 2, 3])  # not a perfect square
+    with pytest.raises(ValueError):
+        gf.search_npuzzle([0, 0, 1, 2, 3, 4, 5, 6, 7])  # not a permutation
+
+
+def test_wordladder_finds_shortest():
+    words = ["hit", "hot", "dot", "dog", "cog", "lot", "log"]
+    r = gf.search_wordladder("hit", "cog", words)
+    assert r.found and r.cost == 4.0
+    assert r.path[0] == "hit" and r.path[-1] == "cog"
+
+
+def test_wordladder_unreachable():
+    r = gf.search_wordladder("cat", "dog", ["cat", "cot"], algorithm="bfs")
+    assert not r.found
+
+
+def test_puzzle_custom_heuristic():
+    # A zero callable must reproduce the uninformed (UCS) optimum.
+    named = gf.search_hanoi(disks=4, heuristic="zero")
+    custom = gf.search_hanoi(disks=4, heuristic=lambda s, g: 0.0)
+    assert custom.cost == named.cost == 15.0

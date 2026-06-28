@@ -14,6 +14,18 @@ Reference generated from the docstrings of the `graphfinder` package.
         - search_implicit
         - SearchResult
 
+## Puzzles
+
+Implicit state-space domains. See [Implicit puzzles](puzzles.md).
+
+::: graphfinder
+    options:
+      show_root_heading: false
+      members:
+        - search_npuzzle
+        - search_hanoi
+        - search_wordladder
+
 ## Shortest paths
 
 Negative-weight shortest-path algorithms. See [Shortest paths](shortest-paths.md).

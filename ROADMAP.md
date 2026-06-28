@@ -44,10 +44,10 @@ Check off each task as you progress. Phase 1 is done and verified.
 - [ ] `viz.plot_search_tree` — deferred (needs the parent map exposed)
 - [ ] Notebooks: uninformed, informed, comparison, grid-animation — deferred
 
-## ⬜ Phase 5 — Performance & scale
+## 🟦 Phase 5 — Performance & scale
 - [ ] Parallel multi-source BFS and all-pairs (rayon)
 - [ ] Radix/bucket-heap Dijkstra for integer weights
-- [ ] Implicit state-space domains: 8/15-puzzle, Towers of Hanoi, word-ladder
+- [x] Implicit state-space domains: 8/15-puzzle, Towers of Hanoi, word-ladder — v0.10.0
 - [ ] Road-network loaders (DIMACS / OSM) + benchmarks
 - [ ] Criterion benchmarks vs networkx / rustworkx baselines
 

@@ -28,6 +28,13 @@ Heuristics (`heuristic=`): a built-in grid name ("zero", "manhattan",
 "euclidean", "octile") *or* a custom callable ``h(node, goal) -> float`` (works
 in any domain — grids, explicit graphs and implicit graphs).
 
+Built-in **implicit puzzles** (the graph is generated on demand, GIL-free):
+
+    >>> gf.search_hanoi(disks=3).cost                 # 7.0  (optimal 2**3 - 1)
+    >>> gf.search_npuzzle([1, 2, 3, 4, 0, 6, 7, 5, 8]).cost
+    >>> gf.search_wordladder("hit", "cog",
+    ...     ["hit", "hot", "dot", "dog", "cog", "lot", "log"]).path
+
 For graphs with **negative edge weights** (where Dijkstra/A* do not apply) use
 :func:`bellman_ford` (single source, detects negative cycles) and
 :func:`floyd_warshall` (all pairs):
@@ -54,14 +61,17 @@ from .graphfinder_native import (
     search_graph,
     search_grid,
     search_grid_costs,
+    search_hanoi,
     search_implicit,
+    search_npuzzle,
+    search_wordladder,
 )
 from . import integrations, viz
 
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 
 
 def search(domain, start=None, goal=None, **kwargs):
@@ -92,6 +102,9 @@ __all__ = [
     "search_grid_costs",
     "search_graph",
     "search_implicit",
+    "search_npuzzle",
+    "search_hanoi",
+    "search_wordladder",
     "bellman_ford",
     "floyd_warshall",
     "ShortestPaths",
