@@ -42,6 +42,7 @@ fn solved<G: Graph>(
         nodes_generated,
         max_frontier_size,
         stop_reason: StopReason::GoalReached,
+        tree: Vec::new(),
         trace,
     }
 }
@@ -60,6 +61,7 @@ fn unsolved<N>(
         nodes_generated,
         max_frontier_size,
         stop_reason,
+        tree: Vec::new(),
         trace,
     }
 }

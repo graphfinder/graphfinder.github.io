@@ -78,3 +78,25 @@ def test_plot_graph_returns_axes():
     r = gf.search_graph(40, edges, 0, 39, algorithm="bfs", record=True)
     ax = gf.viz.plot_graph(40, edges, r)
     assert len(ax.collections) == 1  # the node scatter
+
+
+def test_plot_search_tree_returns_axes():
+    r = gf.search(MAZE, algorithm="astar", record=True)
+    ax = gf.viz.plot_search_tree(r)
+    assert len(ax.collections) == 1  # the node scatter
+    # one tree edge per node that has a parent (= every node but the start)
+    assert len(r.tree) >= 1
+    assert len(ax.lines) == len(r.tree)
+
+
+def test_plot_search_tree_requires_record():
+    r = gf.search(MAZE, algorithm="astar", record=False)
+    assert r.tree == []
+    with pytest.raises(ValueError):
+        gf.viz.plot_search_tree(r)
+
+
+def test_plot_search_tree_on_puzzle():
+    r = gf.search_hanoi(disks=3, record=True)
+    ax = gf.viz.plot_search_tree(r, with_labels=False)
+    assert len(ax.collections) == 1

@@ -4,6 +4,20 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] — 2026-06-28
+
+### Added
+- **Search-tree visualization** (`graphfinder.viz.plot_search_tree`): draws the
+  tree of best-parent links discovered during the search, rooted at the start
+  with the solution path in gold — for grids, graphs *and* puzzles. A tidy
+  layered layout, matplotlib-only (no extra dependency). New
+  [Visualization](https://graphfinder.github.io/visualization/) section + asset.
+- **`SearchResult.tree`** — the core now records the search tree as
+  `(parent, child)` edges (Rust `SearchResult.tree`, Python `result.tree`),
+  gated by `record` like `trace`. Populated by the main algorithms (`bfs`,
+  `dfs`, `ucs`, `greedy`, `astar`, `weighted_astar`); empty for the
+  iterative-deepening and bidirectional drivers, which keep no parent map.
+
 ## [0.10.0] — 2026-06-28
 
 ### Added
@@ -164,6 +178,7 @@ All notable changes to this project are documented here. The format follows
 - Published to PyPI (`graphfinder`) and crates.io (`graphfinder-core`); docs at
   <https://graphfinder.github.io>.
 
+[0.11.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.11.0
 [0.10.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.10.0
 [0.9.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.9.0
 [0.8.0]: https://github.com/graphfinder/graphfinder.github.io/releases/tag/v0.8.0

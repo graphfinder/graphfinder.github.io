@@ -7,6 +7,7 @@ Requires matplotlib (``pip install graphfinder[viz]``). Functions:
   - plot_frontier(result, ax=None)     # frontier size per expansion (memory)
   - compare(results)                   # bar charts across algorithms
   - plot_graph(n, edges, result)       # general graph, nodes coloured by state
+  - plot_search_tree(result)           # the tree of best-parent links explored
 
 Grid helpers accept either an ASCII map (digits ``1``–``9`` are terrain costs) or
 the terrain-cost matrix passed to ``search_grid_costs``.
@@ -361,4 +362,135 @@ def plot_graph(
     cost = result.cost if result.found else float("inf")
     ax.set_title(f"expanded={result.nodes_expanded}  cost={cost}")
     logger.info("plot_graph: %d nodes, %d visited", num_nodes, len(visited))
+    return ax
+
+
+def _node_key(n):
+    """Hashable key for a node (tuples come back as tuples, ints/str as-is)."""
+    return tuple(n) if isinstance(n, list) else n
+
+
+def _node_label(n):
+    """Compact label: words and ints verbatim, coordinate tuples as ``r,c``."""
+    if isinstance(n, tuple):
+        return ",".join(str(x) for x in n)
+    return str(n)
+
+
+def plot_search_tree(
+    result,
+    ax: matplotlib.axes.Axes | None = None,
+    node_size=300,
+    with_labels=None,
+    max_label_nodes=60,
+) -> matplotlib.axes.Axes:
+    """Draw the **search tree**: every generated node linked to its best parent,
+    laid out top-down with the start at the root and the solution path in gold.
+
+    Needs ``result.tree``, recorded only when the search ran with ``record=True``
+    (the default). It is empty for the iterative-deepening and bidirectional
+    algorithms, which keep no persistent parent map.
+
+    Args:
+        result (SearchResult): a run with ``record=True`` and a non-empty tree.
+        ax (matplotlib.axes.Axes, optional): axes to draw on; created if omitted.
+        node_size (int): scatter marker size.
+        with_labels (bool | None): draw node labels; ``None`` shows them only
+            when the tree has at most ``max_label_nodes`` nodes.
+        max_label_nodes (int): label-count threshold used when ``with_labels`` is
+            ``None``.
+
+    Returns:
+        matplotlib.axes.Axes: the axes the tree was drawn on.
+    """
+    import matplotlib.pyplot as plt
+
+    edges = [(_node_key(p), _node_key(c)) for p, c in result.tree]
+    if not edges:
+        raise ValueError(
+            "no search tree to draw; run with record=True and a main algorithm "
+            "(bfs/dfs/ucs/greedy/astar/weighted_astar — not iddfs/ida_star/bidirectional)"
+        )
+
+    children, nodes, child_set = {}, set(), set()
+    for p, c in edges:
+        children.setdefault(p, []).append(c)
+        nodes.update((p, c))
+        child_set.add(c)
+
+    path = [_node_key(n) for n in (result.path or [])]
+    root = path[0] if path else next(iter(nodes - child_set), next(iter(nodes)))
+
+    # Depth by BFS from the root.
+    depth = {root: 0}
+    queue = [root]
+    while queue:
+        cur = queue.pop(0)
+        for kid in sorted(children.get(cur, [])):
+            if kid not in depth:
+                depth[kid] = depth[cur] + 1
+                queue.append(kid)
+
+    # Tidy x-coordinates by an iterative post-order: leaves get sequential slots,
+    # internal nodes sit above the mean of their children.
+    pos = {}
+    next_leaf = [0]
+    stack, done = [(root, False)], set()
+    post = []
+    while stack:
+        node, processed = stack.pop()
+        if processed:
+            post.append(node)
+            continue
+        if node in done:
+            continue
+        done.add(node)
+        stack.append((node, True))
+        for kid in sorted(children.get(node, []), reverse=True):
+            stack.append((kid, False))
+    for node in post:
+        kids = children.get(node, [])
+        if kids:
+            x = sum(pos[k][0] for k in kids) / len(kids)
+        else:
+            x = next_leaf[0]
+            next_leaf[0] += 1
+        pos[node] = (x, -depth.get(node, 0))
+
+    if ax is None:
+        _, ax = plt.subplots()
+    for p, c in edges:
+        if p in pos and c in pos:
+            (x0, y0), (x1, y1) = pos[p], pos[c]
+            ax.plot([x0, x1], [y0, y1], color="#cfd8dc", linewidth=0.8, zorder=1)
+
+    path_set, goal = set(path), (path[-1] if path else None)
+
+    def colour(n):
+        if n == root:
+            return _START_RGB
+        if n == goal:
+            return _GOAL_RGB
+        if n in path_set:
+            return _PATH_RGB
+        return _VISITED_RGB
+
+    laid = list(pos)
+    ax.scatter(
+        [pos[n][0] for n in laid],
+        [pos[n][1] for n in laid],
+        s=node_size,
+        c=[colour(n) for n in laid],
+        edgecolors="#37474f",
+        linewidths=0.5,
+        zorder=2,
+    )
+    show = with_labels if with_labels is not None else (len(laid) <= max_label_nodes)
+    if show:
+        for n, (x, y) in pos.items():
+            ax.annotate(_node_label(n), (x, y), ha="center", va="center", fontsize=7, zorder=3)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(f"search tree — {len(laid)} nodes, depth {max(depth.values(), default=0)}")
+    logger.info("plot_search_tree: %d nodes", len(laid))
     return ax

@@ -8,7 +8,7 @@ build-backend = "maturin"
 
 [project]
 name = "graphfinder"
-version = "0.10.0"
+version = "0.11.0"
 description = "Graph traversal & pathfinding (informed and uninformed search) with a Rust core"
 readme = "python/README.md"
 requires-python = ">=3.9"

@@ -152,6 +152,11 @@ pub struct SearchResult<N> {
     pub stop_reason: StopReason,
     /// Per-expansion trace (empty if `record` was `false`).
     pub trace: Vec<TraceStep<N>>,
+    /// Edges `(parent, child)` of the **search tree** — each generated node
+    /// linked to its best-known parent. Empty unless `record` was `true`. This
+    /// is what `plot_search_tree` draws; for the iterative-deepening and
+    /// bidirectional drivers in [`crate::strategies`] it is left empty.
+    pub tree: Vec<(N, N)>,
 }
 
 impl<N> SearchResult<N> {
@@ -300,6 +305,7 @@ where
                 nodes_generated,
                 max_frontier_size: max_frontier,
                 stop_reason: StopReason::GoalReached,
+                tree: tree_edges(&came_from, record),
                 trace,
             };
         }
@@ -315,6 +321,7 @@ where
                     nodes_generated,
                     max_frontier_size: max_frontier,
                     stop_reason: StopReason::NodeLimit,
+                    tree: tree_edges(&came_from, record),
                     trace,
                 };
             }
@@ -350,8 +357,24 @@ where
         nodes_generated,
         max_frontier_size: max_frontier,
         stop_reason: StopReason::FrontierExhausted,
+        tree: tree_edges(&came_from, record),
         trace,
     }
+}
+
+/// Flatten the best-parent map into `(parent, child)` edges of the search tree.
+/// Empty when `record` is off, so the cost is only paid for visualization.
+fn tree_edges<N>(came_from: &HashMap<N, N>, record: bool) -> Vec<(N, N)>
+where
+    N: Clone + Eq + std::hash::Hash,
+{
+    if !record {
+        return Vec::new();
+    }
+    came_from
+        .iter()
+        .map(|(child, parent)| (parent.clone(), child.clone()))
+        .collect()
 }
 
 /// Walk the parent links from `goal` back to the start, returning the path in

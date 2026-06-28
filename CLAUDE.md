@@ -163,9 +163,11 @@ reacquires the GIL per scored node.
   generators + maze helpers exposed; `examples/quickstart.py` + pytest suite.
 - ✅ **Phase 4** — `graphfinder.viz` (matplotlib, lazy imports): `animate_grid`
   (flagship GIF), `plot_grid`, `plot_frontier`, `compare`, `plot_graph`
-  (networkx layout if available, else circular). `examples/demo_viz.py` writes
-  `assets/`; `tests/test_viz.py` (Agg). Deferred: `plot_search_tree` (needs the
-  core to expose the parent map, not just the path) and notebooks.
+  (networkx layout if available, else circular), `plot_search_tree` (v0.11.0;
+  the core now records `SearchResult.tree` = `(parent, child)` edges, gated by
+  `record`, for the main algorithms). `examples/demo_viz.py` /
+  `build_docs_assets.py` write `assets/`; `tests/test_viz.py` (Agg). Deferred:
+  notebooks.
 - 🟦 **Phase 5** (partial) — ✅ implicit puzzles (8/15-puzzle, Hanoi,
   word-ladder) in `src/puzzles/`, exposed in Python as `search_npuzzle` /
   `search_hanoi` / `search_wordladder` (v0.10.0). ⬜ Remaining: parallel

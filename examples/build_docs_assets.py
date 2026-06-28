@@ -131,6 +131,18 @@ fig.suptitle("Weighted terrain — moving into a cell costs its terrain", fontsi
 fig.tight_layout()
 save(fig, "weighted.png")
 
+# 6) Search tree — the parent links A* explored, on a small maze so it is legible.
+tree_maze = pick_maze(7, 7, 0.2, 12)
+tree_res = gf.search(tree_maze, algorithm="astar", heuristic="manhattan", record=True)
+fig, ax = plt.subplots(figsize=(9, 5))
+gf.viz.plot_search_tree(tree_res, ax=ax)
+ax.set_title(
+    f"A* search tree — {len(tree_res.tree) + 1} nodes; gold is the solution branch",
+    fontsize=11,
+)
+fig.tight_layout()
+save(fig, "search_tree.png")
+
 # Keep the top-level hero in sync (used by the GitHub README).
 import shutil
 

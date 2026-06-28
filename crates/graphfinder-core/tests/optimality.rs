@@ -144,3 +144,53 @@ fn random_maze_is_reproducible() {
     assert_eq!(ra.cost, rb.cost);
     assert_eq!(ra.nodes_expanded, rb.nodes_expanded);
 }
+
+/// The search tree is recorded only with `record=true`; it has exactly one edge
+/// per generated-but-not-start node, forms a tree rooted at the start, and
+/// contains the solution path as a root→goal branch.
+#[test]
+fn search_tree_is_recorded_and_well_formed() {
+    use std::collections::{HashMap, HashSet};
+
+    let m = Maze::from_ascii(SAMPLE_WALL);
+
+    // Off by default when record=false.
+    let off = search(
+        &m.grid,
+        m.start,
+        m.goal,
+        Algorithm::astar(),
+        &Manhattan,
+        false,
+    );
+    assert!(off.tree.is_empty());
+
+    let r = search(
+        &m.grid,
+        m.start,
+        m.goal,
+        Algorithm::astar(),
+        &Manhattan,
+        true,
+    );
+    assert!(r.found());
+
+    // Every child is unique (a tree: one parent each) and the start is never a child.
+    let mut children = HashSet::new();
+    let parent: HashMap<_, _> = r.tree.iter().map(|(p, c)| (*c, *p)).collect();
+    for (_p, c) in &r.tree {
+        assert!(children.insert(*c), "node has more than one parent");
+        assert_ne!(*c, m.start, "the start must be the root, never a child");
+    }
+
+    // The recorded path is reproducible by walking parents from the goal.
+    let path = r.path.clone().unwrap();
+    let mut walk = vec![m.goal];
+    let mut cur = m.goal;
+    while let Some(&p) = parent.get(&cur) {
+        walk.push(p);
+        cur = p;
+    }
+    walk.reverse();
+    assert_eq!(walk, path, "parent walk from goal must equal the path");
+}

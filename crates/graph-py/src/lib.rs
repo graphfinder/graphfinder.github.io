@@ -53,6 +53,10 @@ fn value_err(msg: impl Into<String>) -> PyErr {
 ///     trace (list): per-expansion ``(node, g, frontier_size)`` tuples; empty if
 ///         ``record=False``. Replaying ``node`` reproduces the search order
 ///         (this drives the visualization in Phase 4).
+///     tree (list): edges ``(parent, child)`` of the search tree (each node's
+///         best-known parent); empty if ``record=False``. Drives
+///         ``viz.plot_search_tree``. Empty for the iterative-deepening and
+///         bidirectional algorithms.
 #[pyclass(name = "SearchResult")]
 struct PySearchResult {
     #[pyo3(get)]
@@ -71,6 +75,8 @@ struct PySearchResult {
     stop_reason: String,
     #[pyo3(get)]
     trace: Py<PyAny>,
+    #[pyo3(get)]
+    tree: Py<PyAny>,
 }
 
 #[pymethods]
@@ -145,6 +151,11 @@ fn to_py_result<N: IntoPyNode>(py: Python<'_>, r: SearchResult<N>) -> PyResult<P
             (step.expanded.into_py_node(py), step.g, step.frontier_size).into_py(py);
         trace.append(item)?;
     }
+    let tree = PyList::empty_bound(py);
+    for (parent, child) in r.tree {
+        let edge: Py<PyAny> = (parent.into_py_node(py), child.into_py_node(py)).into_py(py);
+        tree.append(edge)?;
+    }
     Ok(PySearchResult {
         path,
         cost: r.cost,
@@ -154,6 +165,7 @@ fn to_py_result<N: IntoPyNode>(py: Python<'_>, r: SearchResult<N>) -> PyResult<P
         max_frontier_size: r.max_frontier_size,
         stop_reason: stop_str(r.stop_reason),
         trace: trace.into(),
+        tree: tree.into(),
     })
 }
 

@@ -133,7 +133,8 @@ Weighted A*        20       yes        25         5
 - **Visualization** (`graphfinder.viz`, Python): `animate_grid` (the maze-search
   animation above), `plot_grid` (static snapshot, terrain-shaded), `plot_costs`
   (terrain heatmap), `plot_frontier` (memory profile), `compare` (work-vs-quality
-  bar charts), `plot_graph` (general graph coloured by search state).
+  bar charts), `plot_graph` (general graph coloured by search state),
+  `plot_search_tree` (the tree of best-parent links the search explored).
 - **Integrations** (`graphfinder.integrations`): **NetworkX**, **SciPy** sparse
   adjacency, **pandas** edge-list DataFrames, **OSMnx** road networks (geographic
   A\*), a safe **LangChain** routing tool, a **Gymnasium** GridWorld env with an

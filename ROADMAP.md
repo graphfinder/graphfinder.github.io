@@ -41,7 +41,7 @@ Check off each task as you progress. Phase 1 is done and verified.
 - [x] `viz.compare(results)` — bar charts: nodes-expanded (work) vs cost (quality)
 - [x] `viz.plot_frontier(result)` — frontier-size-per-step curve
 - [x] `examples/demo_viz.py` (writes `assets/`) + `tests/test_viz.py`
-- [ ] `viz.plot_search_tree` — deferred (needs the parent map exposed)
+- [x] `viz.plot_search_tree` — v0.11.0 (core now exposes `SearchResult.tree`)
 - [ ] Notebooks: uninformed, informed, comparison, grid-animation — deferred
 
 ## 🟦 Phase 5 — Performance & scale

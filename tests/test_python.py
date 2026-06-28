@@ -30,6 +30,27 @@ def test_trace_recording_toggle():
     assert isinstance(fsize, int) and g >= 0.0
 
 
+def test_search_tree_recording():
+    maze = gf.sample_maze("wall")
+    on = gf.search(maze, algorithm="astar", record=True)
+    off = gf.search(maze, algorithm="astar", record=False)
+    assert off.tree == []
+    assert on.tree  # non-empty when recording
+    # it is a tree: every child has exactly one parent, and the start is the root
+    children = [child for _par, child in on.tree]
+    assert len(children) == len(set(children))
+    start = tuple(on.path[0])
+    assert all(tuple(c) != start for c in children)
+    # walking parents from the goal yields the path
+    parent = {child: par for par, child in on.tree}
+    cur, walk = tuple(on.path[-1]), [tuple(on.path[-1])]
+    while cur in parent:
+        cur = parent[cur]
+        walk.append(cur)
+    walk.reverse()
+    assert walk == [tuple(n) for n in on.path]
+
+
 def test_node_budget_stops_early():
     maze = gf.sample_maze("wall")
     r = gf.search(maze, algorithm="bfs", heuristic="zero", max_nodes=3)

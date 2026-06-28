@@ -62,6 +62,7 @@ Negative-weight shortest-path algorithms. See [Shortest paths](shortest-paths.md
         - plot_frontier
         - compare
         - plot_graph
+        - plot_search_tree
 
 ## Integrations
 

@@ -121,6 +121,29 @@ gf.viz.plot_graph(90, edges, r)
   <img src="/assets/graph.png" alt="graph coloured by search" width="560">
 </p>
 
+## plot_search_tree — the tree the search built
+
+Where `plot_grid` shows *where* the search went, `plot_search_tree` shows *how*:
+the tree of best-parent links discovered while exploring, rooted at the start,
+with the solution path picked out in gold. It works for **any** domain — grids,
+graphs and puzzles — because the core records the parent map for you.
+
+```python
+r = gf.search(gf.random_maze_ascii(7, 7, 0.2, 5),
+              algorithm="astar", heuristic="manhattan", record=True)
+gf.viz.plot_search_tree(r)
+```
+
+<p align="center">
+  <img src="/assets/search_tree.png" alt="A* search tree" width="760">
+</p>
+
+It needs `result.tree`, recorded with `record=True` (the default). That field is
+**empty** for the iterative-deepening and bidirectional algorithms (`iddfs`,
+`ida_star`, `bidirectional`), which keep no persistent parent map — use a main
+algorithm (`bfs`, `dfs`, `ucs`, `greedy`, `astar`, `weighted_astar`). Labels are
+shown automatically for small trees; pass `with_labels=False` for big ones.
+
 ## Reproduce these figures
 
 Every image on this site is produced by one script:
