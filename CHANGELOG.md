@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Desktop GUI** (`gui/`) — a Tauri 2 + Svelte 5 playground whose Rust backend
+  calls `graphfinder-core` directly. Choose any algorithm/heuristic, edit the
+  problem (walls, weighted terrain, start/goal, random maze), animate the search
+  with a scrubber and an optional search-tree overlay, read live metrics and
+  "compare all". Not part of the PyPI/crates release; build it with
+  `cd gui && npm install && npm run tauri dev`. See
+  [Desktop app](https://graphfinder.github.io/gui/).
+
 ## [0.11.0] — 2026-06-28
 
 ### Added

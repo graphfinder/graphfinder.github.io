@@ -142,6 +142,21 @@ Weighted A*        20       yes        25         5
   `pip install graphfinder[networkx]`.
 - **Reproducibility:** seeded random maze generator; deterministic tie-breaking.
 
+## Desktop app (Tauri)
+
+A modern desktop **playground** lives in [`gui/`](gui/) — built with Tauri 2 +
+Svelte 5, its Rust backend calls `graphfinder-core` directly. Pick any algorithm
+and heuristic, paint walls / weighted terrain / start / goal (or generate a
+random maze), then **watch the search animate** with a scrubber, an optional
+search-tree overlay, live metrics and a one-click "compare all".
+
+```bash
+cd gui && npm install && npm run tauri dev
+```
+
+See the [Desktop app docs](https://graphfinder.github.io/gui/) for prerequisites
+and how to build a distributable.
+
 ## How is this different from networkx / rustworkx?
 
 Those are excellent general graph libraries. graphfinder's niche — like

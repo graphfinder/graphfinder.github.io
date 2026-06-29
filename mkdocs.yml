@@ -50,6 +50,7 @@ nav:
       - Domains: domains.md
       - Visualization: visualization.md
   - Integrations: integrations.md
+  - Desktop app (Tauri): gui.md
   - Design & internals: architecture.md
   - API reference: api.md
 

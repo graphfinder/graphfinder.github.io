@@ -4,6 +4,9 @@ members = [
     "crates/graphfinder-core",
     "crates/graph-py",
 ]
+# The Tauri desktop app (gui/src-tauri) is its own isolated workspace so its
+# heavy GUI dependency tree never touches `cargo test`/CI for the library.
+exclude = ["gui"]
 
 [workspace.package]
 version = "0.11.0"

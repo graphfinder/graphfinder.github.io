@@ -1,0 +1,26 @@
+{
+  "name": "graphfinder-gui",
+  "version": "0.1.0",
+  "description": "Desktop GUI for graphfinder (Tauri + Svelte)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "svelte-check --tsconfig ./tsconfig.json && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5",
+    "@tauri-apps/cli": "^2",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "typescript": "^5.6",
+    "vite": "^6"
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true
+  }
+}

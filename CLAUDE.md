@@ -71,6 +71,11 @@ python/graphfinder/        Python API: __init__ (dispatcher), viz (matplotlib).
 examples/quickstart.py     Python quickstart.
 examples/demo_viz.py       Generates assets/ (GIF + PNGs).
 tests/                     test_python.py (binding), test_viz.py (viz, Agg).
+gui/                       Tauri 2 + Svelte 5 desktop app. Own isolated Cargo
+                           workspace (excluded from the root workspace); backend
+                           depends on graphfinder-core directly (no Python).
+                           src-tauri/src/main.rs = commands; src/App.svelte = UI.
+                           Build: cd gui && npm install && npm run tauri dev.
 ```
 
 ## Commands (verified)
