@@ -288,3 +288,49 @@ def test_puzzle_custom_heuristic():
     named = gf.search_hanoi(disks=4, heuristic="zero")
     custom = gf.search_hanoi(disks=4, heuristic=lambda s, g: 0.0)
     assert custom.cost == named.cost == 15.0
+
+
+# --- robustness: clean errors instead of Rust panics --------------------------
+
+def test_search_graph_rejects_out_of_range_edge():
+    # Node 5 does not exist in a 3-node graph; must be a clean ValueError,
+    # not a Rust index-out-of-bounds panic crossing the FFI border.
+    with pytest.raises(ValueError):
+        gf.search_graph(3, [(0, 5, 1.0)], start=0, goal=2)
+
+
+def test_bellman_ford_rejects_out_of_range_edge():
+    with pytest.raises(ValueError):
+        gf.bellman_ford(3, [(0, 9, 1.0)], source=0)
+
+
+def test_floyd_warshall_rejects_out_of_range_edge():
+    with pytest.raises(ValueError):
+        gf.floyd_warshall(3, [(7, 0, 1.0)])
+
+
+def test_implicit_successors_exception_propagates():
+    # A successor callable that raises must surface its exception, not panic.
+    def boom(_state):
+        raise RuntimeError("kaboom")
+
+    with pytest.raises(RuntimeError):
+        gf.search(boom, start=0, goal=10, algorithm="bfs")
+
+
+def test_implicit_successors_bad_return_raises_valueerror():
+    def bad(_state):
+        return "not a list of (state, cost) pairs"
+
+    with pytest.raises(ValueError):
+        gf.search(bad, start=0, goal=10, algorithm="bfs")
+
+
+def test_custom_heuristic_non_float_raises_valueerror():
+    # A heuristic that returns a non-float must raise cleanly, not panic.
+    def bad_h(_node, _goal):
+        return "not a float"
+
+    maze = gf.sample_maze("open")
+    with pytest.raises(ValueError):
+        gf.search(maze, algorithm="astar", heuristic=bad_h)
