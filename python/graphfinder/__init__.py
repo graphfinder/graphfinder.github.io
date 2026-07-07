@@ -71,7 +71,7 @@ from . import integrations, viz
 # Library best practice: never emit log output on import; the application opts in.
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-__version__ = "0.11.0"
+__version__ = "0.11.1"
 
 
 def search(domain, start=None, goal=None, **kwargs):

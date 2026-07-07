@@ -27,7 +27,7 @@ dependencies = [
 
 [[package]]
 name = "graph-py"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "graphfinder-core",
  "pyo3",
@@ -35,7 +35,7 @@ dependencies = [
 
 [[package]]
 name = "graphfinder-core"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "rand",
  "rand_chacha",
