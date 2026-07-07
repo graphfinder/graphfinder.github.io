@@ -76,6 +76,7 @@ def route(graph, orig_point, dest_point, weight="length", **kwargs):
     :func:`search`. Requires ``osmnx``.
     """
     ox = _require("osmnx", "osm")
+    # Points are (lat, lon); osmnx wants X=longitude, Y=latitude — hence the swap.
     orig = ox.distance.nearest_nodes(graph, X=orig_point[1], Y=orig_point[0])
     dest = ox.distance.nearest_nodes(graph, X=dest_point[1], Y=dest_point[0])
     return search(graph, orig, dest, weight=weight, **kwargs)

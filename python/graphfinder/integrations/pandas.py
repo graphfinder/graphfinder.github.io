@@ -19,6 +19,9 @@ def to_edgelist(df, source="source", target="target", weight=None):
     in those columns.
     """
     pd = _require("pandas", "pandas")
+    # unique() keeps first-appearance order, so node ids are deterministic and
+    # independent of label type. (Deliberately not Index.union(), which sorts and
+    # would break on unorderable or mixed-type labels.)
     labels = list(pd.unique(pd.concat([df[source], df[target]], ignore_index=True)))
     index = {node: i for i, node in enumerate(labels)}
     if weight is None:
