@@ -191,6 +191,15 @@ def test_graphviz_to_dot_no_dependency():
     assert "#43a047" in dot  # start node coloured green
 
 
+def test_graphviz_escapes_backslash_and_quote():
+    # A node id containing '\' and '"' must produce valid, correctly escaped DOT.
+    from graphfinder.integrations import graphviz as gfgv
+
+    dot = gfgv.to_dot([('a\\b', 'c"d', 1.0)], None, directed=True)
+    assert '"a\\\\b"' in dot  # backslash escaped as \\
+    assert '"c\\"d"' in dot  # quote escaped as \"
+
+
 def test_graphviz_source_requires_pkg():
     pytest.importorskip("graphviz")
     from graphfinder.integrations import graphviz as gfgv
