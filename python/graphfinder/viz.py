@@ -18,6 +18,7 @@ cheap and never required for the core search API.
 from __future__ import annotations  # keep the matplotlib type hints lazy
 
 import logging
+from collections import deque
 
 logger = logging.getLogger(__name__)
 
@@ -423,9 +424,9 @@ def plot_search_tree(
 
     # Depth by BFS from the root.
     depth = {root: 0}
-    queue = [root]
+    queue = deque([root])
     while queue:
-        cur = queue.pop(0)
+        cur = queue.popleft()
         for kid in sorted(children.get(cur, [])):
             if kid not in depth:
                 depth[kid] = depth[cur] + 1

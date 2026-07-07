@@ -41,7 +41,11 @@ def to_dot(edges, result=None, directed=False, name="G"):
     goal = path[-1] if path else None
 
     def nid(x):
-        return '"' + str(x).replace('"', '\\"') + '"'
+        # Escape backslashes first, then quotes, so a label containing '\' or '"'
+        # produces valid DOT (order matters: escaping quotes first would then
+        # double-escape the backslashes it introduces).
+        escaped = str(x).replace("\\", "\\\\").replace('"', '\\"')
+        return '"' + escaped + '"'
 
     lines = [f"{gtype} {name} {{", f'  node [style=filled fillcolor="{_NODE_COLOR}"];']
     for node in _nodes_in_order(edges):

@@ -15,7 +15,7 @@ in metres (OSMnx's ``length``), so A* returns the shortest route.
 """
 import math
 
-from . import _relabel, _require
+from . import _relabel, _require, _require_node
 
 #: Mean Earth radius in metres.
 EARTH_RADIUS_M = 6_371_000.0
@@ -47,10 +47,8 @@ def search(graph, orig, dest, weight="length", x="x", y="y", algorithm="astar", 
     from .networkx import to_edgelist
 
     n, edges, index, labels, directed = to_edgelist(graph, weight)
-    if orig not in index:
-        raise KeyError(f"origin node {orig!r} is not in the graph")
-    if dest not in index:
-        raise KeyError(f"destination node {dest!r} is not in the graph")
+    orig_id = _require_node(index, orig, "origin", "graph")
+    dest_id = _require_node(index, dest, "destination", "graph")
     coords = graph.nodes
     gx, gy = coords[dest][x], coords[dest][y]
 
@@ -61,8 +59,8 @@ def search(graph, orig, dest, weight="length", x="x", y="y", algorithm="astar", 
     raw = search_graph(
         n,
         edges,
-        index[orig],
-        index[dest],
+        orig_id,
+        dest_id,
         algorithm=algorithm,
         undirected=not directed,
         heuristic=heuristic,
@@ -78,6 +76,7 @@ def route(graph, orig_point, dest_point, weight="length", **kwargs):
     :func:`search`. Requires ``osmnx``.
     """
     ox = _require("osmnx", "osm")
+    # Points are (lat, lon); osmnx wants X=longitude, Y=latitude — hence the swap.
     orig = ox.distance.nearest_nodes(graph, X=orig_point[1], Y=orig_point[0])
     dest = ox.distance.nearest_nodes(graph, X=dest_point[1], Y=dest_point[0])
     return search(graph, orig, dest, weight=weight, **kwargs)

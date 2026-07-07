@@ -8,7 +8,7 @@ search results into tidy tables.
 
 Requires ``pandas`` (``pip install "graphfinder[pandas]"``).
 """
-from . import _relabel, _require
+from . import _relabel, _require, _require_node
 
 
 def to_edgelist(df, source="source", target="target", weight=None):
@@ -19,6 +19,9 @@ def to_edgelist(df, source="source", target="target", weight=None):
     in those columns.
     """
     pd = _require("pandas", "pandas")
+    # unique() keeps first-appearance order, so node ids are deterministic and
+    # independent of label type. (Deliberately not Index.union(), which sorts and
+    # would break on unorderable or mixed-type labels.)
     labels = list(pd.unique(pd.concat([df[source], df[target]], ignore_index=True)))
     index = {node: i for i, node in enumerate(labels)}
     if weight is None:
@@ -52,15 +55,13 @@ def search(
     from .. import search_graph
 
     n, edges, index, labels = to_edgelist(df, source, target, weight)
-    if source_node not in index:
-        raise KeyError(f"source node {source_node!r} is not in the edge list")
-    if target_node not in index:
-        raise KeyError(f"target node {target_node!r} is not in the edge list")
+    s = _require_node(index, source_node, "source", "edge list")
+    t = _require_node(index, target_node, "target", "edge list")
     raw = search_graph(
         n,
         edges,
-        index[source_node],
-        index[target_node],
+        s,
+        t,
         algorithm=algorithm,
         undirected=not directed,
         **kwargs,
