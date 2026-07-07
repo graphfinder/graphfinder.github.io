@@ -280,7 +280,14 @@ where
             dls(graph, start, goal, limit, record)
         }
         "ida_star" | "idastar" => ida_star(graph, start, goal, heuristic.clone(), record),
-        "beam" => beam_search(graph, start, goal, heuristic.clone(), opts.beam_width, record),
+        "beam" => beam_search(
+            graph,
+            start,
+            goal,
+            heuristic.clone(),
+            opts.beam_width,
+            record,
+        ),
         "bidirectional" | "bidir" => bidirectional(graph, start, goal, record),
         other => {
             return Err(value_err(format!(
@@ -325,9 +332,9 @@ impl PyImplicitGraph {
     fn try_neighbors(&self, py: Python<'_>, node: &[i64]) -> PyResult<Vec<(Vec<i64>, f64)>> {
         let arg = state_to_py(py, node);
         let result = self.successors.call1(py, (arg,))?;
-        let pairs: Vec<(Py<PyAny>, f64)> = result.extract(py).map_err(|_| {
-            value_err("successors must return a list of (state, cost) pairs")
-        })?;
+        let pairs: Vec<(Py<PyAny>, f64)> = result
+            .extract(py)
+            .map_err(|_| value_err("successors must return a list of (state, cost) pairs"))?;
         pairs
             .into_iter()
             .map(|(state, cost)| Ok((py_to_state(state.bind(py))?, cost)))
@@ -380,7 +387,10 @@ impl<N> Clone for PyHeuristic<N> {
         // error slot is shared (clone the `Rc`), so a failure seen through any
         // clone (e.g. inside IDA*/beam) still reaches the caller.
         Python::with_gil(|py| {
-            PyHeuristic::new(self.func.as_ref().map(|f| f.clone_ref(py)), self.err.clone())
+            PyHeuristic::new(
+                self.func.as_ref().map(|f| f.clone_ref(py)),
+                self.err.clone(),
+            )
         })
     }
 }
