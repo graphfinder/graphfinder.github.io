@@ -213,6 +213,24 @@ struct RunOpts {
     max_nodes: Option<usize>,
 }
 
+impl RunOpts {
+    /// Build from the raw pyfunction arguments, defaulting an unset beam width to
+    /// "unbounded" (`usize::MAX` ≈ greedy). Shared by every search entry point.
+    fn new(
+        weight: f64,
+        beam_width: Option<usize>,
+        depth_limit: Option<usize>,
+        max_nodes: Option<usize>,
+    ) -> Self {
+        Self {
+            weight,
+            beam_width: beam_width.unwrap_or(usize::MAX),
+            depth_limit,
+            max_nodes,
+        }
+    }
+}
+
 /// Run the named algorithm on any `Graph`. Pure Rust — safe to call with the
 /// GIL released for native domains.
 fn run_algo<G, H>(
@@ -228,72 +246,33 @@ where
     G: Graph,
     H: Heuristic<G::Node> + Clone,
 {
-    let max_depth = opts.depth_limit.unwrap_or(1000);
+    // The classic algorithms are all the *same* GENERAL-SEARCH loop and differ
+    // only in the `Algorithm` knobs (frontier + g/h coefficients), so they share
+    // a single `search_with` call. The rest need their own driver.
+    let algo = match algorithm {
+        "bfs" => Some(Algorithm::bfs()),
+        "dfs" => Some(Algorithm::dfs()),
+        "ucs" => Some(Algorithm::ucs()),
+        "dijkstra" => Some(Algorithm::dijkstra()),
+        "greedy" => Some(Algorithm::greedy()),
+        "astar" | "a*" => Some(Algorithm::astar()),
+        "weighted_astar" | "wastar" => Some(Algorithm::weighted_astar(opts.weight)),
+        _ => None,
+    };
+    if let Some(algo) = algo {
+        return Ok(search_with(
+            graph,
+            start,
+            goal,
+            algo,
+            &heuristic,
+            record,
+            opts.max_nodes,
+        ));
+    }
+
     let r = match algorithm {
-        "bfs" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::bfs(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "dfs" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::dfs(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "ucs" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::ucs(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "dijkstra" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::dijkstra(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "greedy" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::greedy(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "astar" | "a*" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::astar(),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "weighted_astar" | "wastar" => search_with(
-            graph,
-            start,
-            goal,
-            Algorithm::weighted_astar(opts.weight),
-            &heuristic,
-            record,
-            opts.max_nodes,
-        ),
-        "iddfs" => iddfs(graph, start, goal, max_depth, record),
+        "iddfs" => iddfs(graph, start, goal, opts.depth_limit.unwrap_or(1000), record),
         "dls" => {
             let limit = opts
                 .depth_limit
@@ -301,14 +280,7 @@ where
             dls(graph, start, goal, limit, record)
         }
         "ida_star" | "idastar" => ida_star(graph, start, goal, heuristic.clone(), record),
-        "beam" => beam_search(
-            graph,
-            start,
-            goal,
-            heuristic.clone(),
-            opts.beam_width,
-            record,
-        ),
+        "beam" => beam_search(graph, start, goal, heuristic.clone(), opts.beam_width, record),
         "bidirectional" | "bidir" => bidirectional(graph, start, goal, record),
         other => {
             return Err(value_err(format!(
@@ -538,12 +510,7 @@ fn search_grid(
     if diagonal {
         grid = grid.with_diagonal(true);
     }
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     run_on_grid(py, grid, start, goal, algorithm, heuristic, record, &opts)
 }
 
@@ -585,12 +552,7 @@ fn search_grid_costs(
             "start and goal must be in-bounds, non-wall cells",
         ));
     }
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     run_on_grid(py, grid, start, goal, algorithm, heuristic, record, &opts)
 }
 
@@ -627,12 +589,7 @@ fn search_graph(
     }
     check_edges(num_nodes, &edges)?;
     let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "zero")? {
         HeuristicArg::Named(name) => match name.as_str() {
@@ -688,12 +645,7 @@ fn search_implicit(
         err: err.clone(),
     };
     let h: PyHeuristic<Vec<i64>> = PyHeuristic::new(heuristic, err.clone());
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     // The search calls back into Python on every expansion, so we keep the GIL.
     let r = run_algo(&graph, start_v, goal_v, algorithm, h, record, &opts)?;
     take_err(&err)?;
@@ -987,12 +939,7 @@ fn search_npuzzle(
             "this configuration is not solvable into the goal (parity)",
         ));
     }
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "manhattan")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
@@ -1064,12 +1011,7 @@ fn search_hanoi(
     let game = Hanoi::with_pegs(disks, pegs);
     let start = game.start();
     let goal = game.goal();
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "misplaced")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
@@ -1123,12 +1065,7 @@ fn search_wordladder(
     let mut ladder = WordLadder::new(words);
     ladder.insert(start.clone());
     ladder.insert(goal.clone());
-    let opts = RunOpts {
-        weight,
-        beam_width: beam_width.unwrap_or(usize::MAX),
-        depth_limit,
-        max_nodes,
-    };
+    let opts = RunOpts::new(weight, beam_width, depth_limit, max_nodes);
     let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "hamming")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<String>> {
