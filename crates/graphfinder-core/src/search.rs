@@ -88,8 +88,14 @@ impl Algorithm {
         }
     }
 
-    /// A*: priority = `g(n) + h(n)`. Complete and optimal with an admissible
-    /// heuristic; expands the fewest nodes among optimal algorithms.
+    /// A*: priority = `g(n) + h(n)`. Complete, and optimal with a **consistent
+    /// (monotone)** heuristic; expands the fewest nodes among optimal algorithms.
+    ///
+    /// Note: this is graph search with a closed set and no node reopening (see
+    /// [`run`]), so optimality requires *consistency*, not merely admissibility.
+    /// The built-in grid heuristics ([`crate::Manhattan`], [`crate::Euclidean`],
+    /// [`crate::Octile`]) are all consistent; a custom heuristic that is only
+    /// admissible can yield a sub-optimal path here.
     pub fn astar() -> Self {
         Self {
             frontier: FrontierKind::Priority,
@@ -280,8 +286,9 @@ where
     let mut trace = Vec::new();
 
     while let Some(node) = frontier.pop() {
-        // A min-priority frontier may hold stale duplicates of an already
-        // expanded node; skip them. (FIFO/LIFO never produce duplicates here.)
+        // The frontier may hold stale duplicates of a node that was reached by a
+        // cheaper path after it was first pushed (the relaxation below re-pushes
+        // on improvement, for any frontier kind); skip the ones already expanded.
         if closed.contains(&node) {
             continue;
         }

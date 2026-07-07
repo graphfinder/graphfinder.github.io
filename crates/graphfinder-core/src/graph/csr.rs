@@ -20,10 +20,18 @@ pub struct CsrGraph {
 impl CsrGraph {
     /// Build from an edge list over `n` nodes (`0..n`). Each edge is
     /// `(from, to, weight)`. If `undirected`, every edge is inserted both ways.
+    ///
+    /// # Panics
+    /// If any edge endpoint is `>= n`. Callers taking untrusted input (e.g. the
+    /// Python binding) should validate endpoints first and surface a clean error.
     pub fn from_edges(n: usize, edges: &[(usize, usize, f64)], undirected: bool) -> Self {
         // Count out-degree per node (counting both directions if undirected).
         let mut degree = vec![0usize; n];
         for &(u, v, _) in edges {
+            assert!(
+                u < n && v < n,
+                "edge ({u}, {v}) is out of range for a {n}-node graph"
+            );
             degree[u] += 1;
             if undirected {
                 degree[v] += 1;
@@ -88,5 +96,17 @@ impl Graph for CsrGraph {
         (lo..hi)
             .map(|i| (self.targets[i], self.weights[i]))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic(expected = "out of range")]
+    fn from_edges_rejects_out_of_range_endpoint() {
+        // Node 5 does not exist in a 3-node graph.
+        CsrGraph::from_edges(3, &[(0, 5, 1.0)], false);
     }
 }

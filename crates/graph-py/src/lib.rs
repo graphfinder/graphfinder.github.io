@@ -14,7 +14,9 @@
 // code we don't control, so silence it crate-wide.
 #![allow(clippy::useless_conversion)]
 
+use std::cell::RefCell;
 use std::marker::PhantomData;
+use std::rc::Rc;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
@@ -32,6 +34,37 @@ use graphfinder_core::{
 
 fn value_err(msg: impl Into<String>) -> PyErr {
     PyValueError::new_err(msg.into())
+}
+
+/// A slot shared by the Python-backed [`Graph`]/[`Heuristic`] adapters to carry
+/// the first exception raised by a user callback out of the (panic-free) search
+/// loop. `Graph::neighbors`/`Heuristic::estimate` cannot return a `Result`, so on
+/// error they stash it here and return a neutral value; the caller surfaces it
+/// once the search returns. `Rc`/`RefCell` are sound because every callback runs
+/// single-threaded while holding the GIL (no `allow_threads` wraps them).
+type ErrSlot = Rc<RefCell<Option<PyErr>>>;
+
+/// Take the captured callback error, if any. Call after the search returns to
+/// turn a stashed exception into the function's `Err`.
+fn take_err(slot: &ErrSlot) -> PyResult<()> {
+    match slot.borrow_mut().take() {
+        Some(e) => Err(e),
+        None => Ok(()),
+    }
+}
+
+/// Reject an edge list whose endpoints fall outside `0..num_nodes` with a clean
+/// `ValueError` (otherwise `CsrGraph::from_edges` panics on an out-of-range
+/// index, which crosses the FFI boundary as an opaque Rust panic).
+fn check_edges(num_nodes: usize, edges: &[(usize, usize, f64)]) -> PyResult<()> {
+    for &(u, v, _) in edges {
+        if u >= num_nodes || v >= num_nodes {
+            return Err(value_err(format!(
+                "edge ({u}, {v}) is out of range for a {num_nodes}-node graph"
+            )));
+        }
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -311,28 +344,40 @@ fn py_to_state(obj: &Bound<'_, PyAny>) -> PyResult<Vec<i64>> {
 
 struct PyImplicitGraph {
     successors: Py<PyAny>,
+    err: ErrSlot,
+}
+
+impl PyImplicitGraph {
+    /// Call the Python successor function and decode its result, propagating any
+    /// exception as a `PyErr` instead of panicking.
+    fn try_neighbors(&self, py: Python<'_>, node: &[i64]) -> PyResult<Vec<(Vec<i64>, f64)>> {
+        let arg = state_to_py(py, node);
+        let result = self.successors.call1(py, (arg,))?;
+        let pairs: Vec<(Py<PyAny>, f64)> = result.extract(py).map_err(|_| {
+            value_err("successors must return a list of (state, cost) pairs")
+        })?;
+        pairs
+            .into_iter()
+            .map(|(state, cost)| Ok((py_to_state(state.bind(py))?, cost)))
+            .collect()
+    }
 }
 
 impl Graph for PyImplicitGraph {
     type Node = Vec<i64>;
 
     fn neighbors(&self, node: &Vec<i64>) -> Vec<(Vec<i64>, f64)> {
-        Python::with_gil(|py| {
-            let arg = state_to_py(py, node);
-            let result = self
-                .successors
-                .call1(py, (arg,))
-                .expect("the successors callable raised an exception");
-            let pairs: Vec<(Py<PyAny>, f64)> = result
-                .extract(py)
-                .expect("successors must return a list of (state, cost) pairs");
-            pairs
-                .into_iter()
-                .map(|(state, cost)| {
-                    let key = py_to_state(state.bind(py)).expect("invalid successor state");
-                    (key, cost)
-                })
-                .collect()
+        // Once a callback has failed, expand nothing more: the search winds down
+        // and the stashed error is surfaced by the caller via `take_err`.
+        if self.err.borrow().is_some() {
+            return Vec::new();
+        }
+        Python::with_gil(|py| match self.try_neighbors(py, node) {
+            Ok(pairs) => pairs,
+            Err(e) => {
+                self.err.borrow_mut().replace(e);
+                Vec::new()
+            }
         })
     }
 }
@@ -343,13 +388,15 @@ impl Graph for PyImplicitGraph {
 /// → `int`/tuple), so the same adapter serves every domain.
 struct PyHeuristic<N> {
     func: Option<Py<PyAny>>,
+    err: ErrSlot,
     _marker: PhantomData<N>,
 }
 
 impl<N> PyHeuristic<N> {
-    fn new(func: Option<Py<PyAny>>) -> Self {
+    fn new(func: Option<Py<PyAny>>, err: ErrSlot) -> Self {
         Self {
             func,
+            err,
             _marker: PhantomData,
         }
     }
@@ -357,22 +404,37 @@ impl<N> PyHeuristic<N> {
 
 impl<N> Clone for PyHeuristic<N> {
     fn clone(&self) -> Self {
-        // `Py<PyAny>` clones by bumping the refcount, which needs the GIL.
-        Python::with_gil(|py| PyHeuristic::new(self.func.as_ref().map(|f| f.clone_ref(py))))
+        // `Py<PyAny>` clones by bumping the refcount, which needs the GIL. The
+        // error slot is shared (clone the `Rc`), so a failure seen through any
+        // clone (e.g. inside IDA*/beam) still reaches the caller.
+        Python::with_gil(|py| {
+            PyHeuristic::new(self.func.as_ref().map(|f| f.clone_ref(py)), self.err.clone())
+        })
     }
 }
 
 impl<N: IntoPyNode + Clone> Heuristic<N> for PyHeuristic<N> {
     fn estimate(&self, node: &N, goal: &N) -> f64 {
-        match &self.func {
-            None => 0.0,
-            Some(f) => Python::with_gil(|py| {
-                let args = (node.clone().into_py_node(py), goal.clone().into_py_node(py));
-                f.call1(py, args)
-                    .and_then(|v| v.extract::<f64>(py))
-                    .expect("the heuristic callable must return a float")
-            }),
+        let f = match &self.func {
+            None => return 0.0,
+            Some(f) => f,
+        };
+        // After a callback error, return a neutral estimate; the caller aborts.
+        if self.err.borrow().is_some() {
+            return 0.0;
         }
+        Python::with_gil(|py| {
+            let args = (node.clone().into_py_node(py), goal.clone().into_py_node(py));
+            match f.call1(py, args).and_then(|v| v.extract::<f64>(py)) {
+                Ok(x) => x,
+                Err(_) => {
+                    self.err
+                        .borrow_mut()
+                        .replace(value_err("the heuristic callable must return a float"));
+                    0.0
+                }
+            }
+        })
     }
 }
 
@@ -421,6 +483,7 @@ fn run_on_grid(
     record: bool,
     opts: &RunOpts,
 ) -> PyResult<PySearchResult> {
+    let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "manhattan")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Cell>> {
             match name.as_str() {
@@ -435,10 +498,11 @@ fn run_on_grid(
             }
         })?,
         HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<Cell> = PyHeuristic::new(Some(func));
+            let h: PyHeuristic<Cell> = PyHeuristic::new(Some(func), err.clone());
             run_algo(&grid, start, goal, algorithm, h, record, opts)?
         }
     };
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
@@ -561,6 +625,7 @@ fn search_graph(
     if start >= num_nodes || goal >= num_nodes {
         return Err(value_err("start and goal must be < num_nodes"));
     }
+    check_edges(num_nodes, &edges)?;
     let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
     let opts = RunOpts {
         weight,
@@ -568,6 +633,7 @@ fn search_graph(
         depth_limit,
         max_nodes,
     };
+    let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "zero")? {
         HeuristicArg::Named(name) => match name.as_str() {
             // Graph nodes are ids with no geometry, so the only built-in is zero.
@@ -582,10 +648,11 @@ fn search_graph(
             }
         },
         HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<usize> = PyHeuristic::new(Some(func));
+            let h: PyHeuristic<usize> = PyHeuristic::new(Some(func), err.clone());
             run_algo(&graph, start, goal, algorithm, h, record, &opts)?
         }
     };
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
@@ -613,8 +680,14 @@ fn search_implicit(
 ) -> PyResult<PySearchResult> {
     let start_v = py_to_state(&start)?;
     let goal_v = py_to_state(&goal)?;
-    let graph = PyImplicitGraph { successors };
-    let h: PyHeuristic<Vec<i64>> = PyHeuristic::new(heuristic);
+    // Graph and heuristic share one error slot so a failure in either callback
+    // surfaces as a clean exception rather than panicking across the FFI border.
+    let err: ErrSlot = Rc::new(RefCell::new(None));
+    let graph = PyImplicitGraph {
+        successors,
+        err: err.clone(),
+    };
+    let h: PyHeuristic<Vec<i64>> = PyHeuristic::new(heuristic, err.clone());
     let opts = RunOpts {
         weight,
         beam_width: beam_width.unwrap_or(usize::MAX),
@@ -623,6 +696,7 @@ fn search_implicit(
     };
     // The search calls back into Python on every expansion, so we keep the GIL.
     let r = run_algo(&graph, start_v, goal_v, algorithm, h, record, &opts)?;
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
@@ -815,6 +889,7 @@ fn bellman_ford_py(
     if source >= num_nodes {
         return Err(value_err("source must be < num_nodes"));
     }
+    check_edges(num_nodes, &edges)?;
     let inner = py.allow_threads(|| {
         let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
         bellman_ford(&graph, source)
@@ -835,6 +910,7 @@ fn floyd_warshall_py(
     edges: Vec<(usize, usize, f64)>,
     undirected: bool,
 ) -> PyResult<PyAllPairs> {
+    check_edges(num_nodes, &edges)?;
     let inner = py.allow_threads(|| {
         let graph = CsrGraph::from_edges(num_nodes, &edges, undirected);
         floyd_warshall(&graph)
@@ -917,6 +993,7 @@ fn search_npuzzle(
         depth_limit,
         max_nodes,
     };
+    let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "manhattan")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
             match name.as_str() {
@@ -946,10 +1023,11 @@ fn search_npuzzle(
             }
         })?,
         HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func));
+            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func), err.clone());
             run_algo(&puzzle, start, goal, algorithm, h, record, &opts)?
         }
     };
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
@@ -992,6 +1070,7 @@ fn search_hanoi(
         depth_limit,
         max_nodes,
     };
+    let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "misplaced")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<Vec<u8>>> {
             match name.as_str() {
@@ -1005,10 +1084,11 @@ fn search_hanoi(
             }
         })?,
         HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func));
+            let h: PyHeuristic<Vec<u8>> = PyHeuristic::new(Some(func), err.clone());
             run_algo(&game, start, goal, algorithm, h, record, &opts)?
         }
     };
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
@@ -1049,6 +1129,7 @@ fn search_wordladder(
         depth_limit,
         max_nodes,
     };
+    let err: ErrSlot = Rc::new(RefCell::new(None));
     let r = match resolve_heuristic(heuristic, "hamming")? {
         HeuristicArg::Named(name) => py.allow_threads(|| -> PyResult<SearchResult<String>> {
             match name.as_str() {
@@ -1068,10 +1149,11 @@ fn search_wordladder(
             }
         })?,
         HeuristicArg::Custom(func) => {
-            let h: PyHeuristic<String> = PyHeuristic::new(Some(func));
+            let h: PyHeuristic<String> = PyHeuristic::new(Some(func), err.clone());
             run_algo(&ladder, start, goal, algorithm, h, record, &opts)?
         }
     };
+    take_err(&err)?;
     to_py_result(py, r)
 }
 
