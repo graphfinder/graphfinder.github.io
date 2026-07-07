@@ -6,7 +6,7 @@
 
 Requires ``networkx`` (``pip install "graphfinder[networkx]"``).
 """
-from . import _relabel, _require
+from . import _relabel, _require, _require_node
 
 
 def to_edgelist(graph, weight="weight"):
@@ -41,15 +41,13 @@ def search(graph, source, target, algorithm="dijkstra", weight="weight", **kwarg
     from .. import search_graph
 
     n, edges, index, labels, directed = to_edgelist(graph, weight)
-    if source not in index:
-        raise KeyError(f"source node {source!r} is not in the graph")
-    if target not in index:
-        raise KeyError(f"target node {target!r} is not in the graph")
+    s = _require_node(index, source, "source", "graph")
+    t = _require_node(index, target, "target", "graph")
     raw = search_graph(
         n,
         edges,
-        index[source],
-        index[target],
+        s,
+        t,
         algorithm=algorithm,
         undirected=not directed,
         **kwargs,

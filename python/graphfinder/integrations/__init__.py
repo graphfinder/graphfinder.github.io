@@ -62,6 +62,20 @@ def _relabel(raw, id_to_label) -> LabeledResult:
     )
 
 
+def _require_node(index, label, role="source", container="graph"):
+    """Resolve a node ``label`` to its integer id via ``index``.
+
+    Raises ``KeyError`` with a clear message if the label is absent. ``role``
+    names the endpoint (e.g. ``"source"``, ``"origin"``) and ``container`` names
+    where it was expected (e.g. ``"graph"``, ``"edge list"``) — used only for the
+    error message. Shared by the networkx/pandas/osm integrations, which all map
+    caller labels to the integer ids :func:`graphfinder.search_graph` expects.
+    """
+    if label not in index:
+        raise KeyError(f"{role} node {label!r} is not in the {container}")
+    return index[label]
+
+
 def _require(module: str, extra: str):
     """Import an optional dependency, with a helpful message if it is missing."""
     try:

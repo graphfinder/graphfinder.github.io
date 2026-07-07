@@ -30,6 +30,25 @@ def test_networkx_search_matches_nx():
     assert r.cost == nx.shortest_path_length(g, "A", "E", weight="weight")
 
 
+def test_missing_endpoint_raises_keyerror_naming_container():
+    # The shared _require_node helper must raise KeyError naming the missing
+    # endpoint and the right container ("graph" vs "edge list").
+    nx = pytest.importorskip("networkx")
+    from graphfinder.integrations import networkx as gfnx
+
+    g = nx.Graph()
+    g.add_weighted_edges_from(EDGES)
+    with pytest.raises(KeyError, match="source node 'ZZZ' is not in the graph"):
+        gfnx.search(g, "ZZZ", "E")
+
+    pd = pytest.importorskip("pandas")
+    from graphfinder.integrations import pandas as gfpd
+
+    df = pd.DataFrame(EDGES, columns=["source", "target", "weight"])
+    with pytest.raises(KeyError, match="target node 'ZZZ' is not in the edge list"):
+        gfpd.search(df, "A", "ZZZ", weight="weight")
+
+
 def test_networkx_directed_is_honoured():
     nx = pytest.importorskip("networkx")
     from graphfinder.integrations import networkx as gfnx
